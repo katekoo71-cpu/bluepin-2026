@@ -1,0 +1,1501 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>BluePin - Realtime Map</title>
+    <!-- [DEBUG] Error Protections Active -->
+    <script>
+        window.onerror = function (msg, url, line) {
+            console.error("⚠️ Global Error:", msg, line);
+            return false;
+        };
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function (registrations) {
+                for (let registration of registrations) { registration.unregister(); }
+            });
+        }
+    </script>
+
+    <!-- Leaflet & Clusters -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Fonts: Pretendard for Toss-like feel -->
+    <link rel="stylesheet" as="style" crossorigin
+        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.8/dist/web/static/pretendard.css" />
+
+    <style>
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+            background: #F2F4F6;
+            /* Toss Light Gray */
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Brand Colors */
+        .text-brand {
+            color: #3182F6;
+        }
+
+        .bg-brand {
+            background-color: #3182F6;
+        }
+
+        .border-brand {
+            border-color: #3182F6;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        .ui-overlay {
+            z-index: 1000;
+            pointer-events: none;
+        }
+
+        .ui-element {
+            pointer-events: auto;
+        }
+
+        .pt-safe-top {
+            padding-top: max(env(safe-area-inset-top), 20px);
+        }
+
+        .pb-safe-bottom {
+            padding-bottom: max(env(safe-area-inset-bottom), 20px);
+        }
+
+        /* Modern Card Shadow */
+        .shadow-toss {
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        }
+
+        .shadow-floating {
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+        }
+
+        /* Active Scale Effect */
+        .btn-active:active {
+            transform: scale(0.96);
+            transition: transform 0.1s;
+        }
+
+        /* Pulse Animation */
+        @keyframes pulse-ring {
+            0% {
+                transform: scale(0.8);
+                opacity: 0.5;
+                box-shadow: 0 0 0 0 rgba(49, 130, 246, 0.7);
+            }
+
+            100% {
+                transform: scale(1.2);
+                opacity: 0;
+                box-shadow: 0 0 0 20px rgba(49, 130, 246, 0);
+            }
+        }
+
+        .animate-pulse-ring {
+            animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        /* Navigation Color */
+        .nav-active {
+            color: #3182F6;
+        }
+
+        .nav-inactive {
+            color: #B0B8C1;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- 0. Splash Screen (Click to dismiss failsafe) -->
+    <div id="splash-screen" onclick="hideSplash()"
+        class="fixed inset-0 z-[10100] bg-[#3182F6] flex flex-col items-center justify-center transition-opacity duration-700">
+        <div class="flex-1 flex flex-col items-center justify-center">
+            <h1 class="text-5xl font-extrabold text-white tracking-tighter mb-2">BluePin</h1>
+            <p class="text-white/80 font-bold text-sm tracking-widest">Connect Locally</p>
+        </div>
+        <div class="pb-safe-bottom mb-8 text-center">
+            <p class="text-[0.7rem] text-white/60 font-medium">Secure Env v2.0</p>
+        </div>
+    </div>
+
+    <!-- 1. Header (Floating Style) -->
+    <div class="fixed top-0 left-0 right-0 px-5 pt-safe-top pb-2 ui-overlay flex justify-between items-center z-[9999]">
+        <!-- Guest/User Badge -->
+        <div id="header-left" onclick="showPage('MY')"
+            class="ui-element bg-white/90 backdrop-blur-md px-4 py-2.5 rounded-[20px] shadow-toss border border-white/20 flex items-center gap-2 cursor-pointer btn-active">
+            <span class="text-[#191F28] font-bold text-sm">Guest</span>
+        </div>
+
+        <!-- ON/OFF Toggle -->
+        <button onclick="toggleOnOff()" id="onOffBtn"
+            class="ui-element bg-white/90 backdrop-blur-xl px-6 py-2 rounded-full shadow-sm border border-white/50 text-slate-400 font-black text-sm tracking-wide transition-all active:scale-95">
+            OFF
+        </button>
+
+        <!-- [RESTORED] Profile / Partner Mode Switch -->
+        <div id="header-right-container" class="flex gap-2">
+            <!-- [Moved] Owner Mode Button moved to My Page -->
+            <div id="header-right"
+                class="ui-element bg-white/90 backdrop-blur-xl p-2.5 rounded-full shadow-sm border border-white/50 cursor-pointer active:scale-95 transition-transform text-slate-600">
+                <!-- Injected by JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Search Bar (Floating) -->
+    <div id="search-container"
+        class="fixed top-[calc(env(safe-area-inset-top)+80px)] left-0 right-0 px-5 ui-overlay z-[9998] flex justify-center">
+        <div
+            class="ui-element w-full max-w-md bg-white rounded-[24px] shadow-floating flex items-center px-5 py-4 transition-all focus-within:ring-2 ring-[#3182F6]/20">
+            <input type="text" id="searchInput" placeholder="어떤 장소가 궁금하세요?"
+                class="flex-1 bg-transparent border-none outline-none text-[#191F28] placeholder-[#B0B8C1] text-[15px] font-semibold"
+                onkeydown="if(event.key === 'Enter') searchLoc()">
+            <button onclick="searchLoc()"
+                class="ml-2 w-10 h-10 flex items-center justify-center bg-[#F2F4F6] rounded-full text-[#3182F6] btn-active">
+                <svg width="20" height="20" fill="none" class="stroke-current" stroke-width="2.5" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <path d="m21 21-4.35-4.35"></path>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- 3. Notification (Toast Style) -->
+    <div id="notification-banner" onclick="openIncomingChat()"
+        class="fixed top-[calc(env(safe-area-inset-top)+160px)] left-5 right-5 bg-white/95 backdrop-blur-md rounded-[24px] p-5 shadow-floating z-[9990] transform -translate-y-[300%] transition-transform duration-500 cursor-pointer flex items-center gap-4 ui-element border border-[#3182F6]/10">
+        <div
+            class="w-12 h-12 rounded-full bg-[#E8F3FF] flex items-center justify-center flex-shrink-0 text-[#3182F6] text-xl">
+            🔔
+        </div>
+        <div>
+            <h4 id="noti-title" class="text-[#191F28] font-bold text-[15px]">새로운 요청</h4>
+            <p id="noti-desc" class="text-[#8B95A1] text-xs mt-1">지금 확인해보세요!</p>
+        </div>
+    </div>
+
+    <!-- Map View -->
+    <div id="view-map" class="w-full h-full relative">
+        <div id="map"></div>
+        <!-- Zoom Button -->
+        <div class="fixed bottom-28 right-5 flex flex-col gap-3 ui-overlay z-[9995]">
+            <button onclick="zoomToCurrent()"
+                class="ui-element w-12 h-12 bg-white rounded-full shadow-floating flex items-center justify-center text-[#4E5968] btn-active">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- Feed View (Card List) -->
+    <div id="view-feed" class="hidden w-full h-full bg-[#F2F4F6] pt-32 pb-28 px-5 overflow-y-auto">
+        <h2 class="text-2xl font-bold text-[#191F28] mb-6">실시간 요청</h2>
+        <div class="space-y-4">
+            <div class="bg-white rounded-[24px] p-6 shadow-toss btn-active cursor-pointer">
+                <div class="flex justify-between items-start mb-3">
+                    <span class="bg-[#E8F3FF] text-[#3182F6] text-[11px] font-bold px-2.5 py-1 rounded-[8px]">줄서기</span>
+                    <span class="text-[#191F28] font-bold">3,000 BP</span>
+                </div>
+                <h3 class="text-[#333D4B] font-bold text-lg mb-1">성수 디올 줄 상황 알려주세요</h3>
+                <p class="text-[#8B95A1] text-sm">현재 대기 인원이 너무 궁금합니다.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Wallet View (Toss Style) -->
+    <div id="view-wallet" class="hidden w-full h-full bg-[#F2F4F6] pt-32 pb-28 px-5 overflow-y-auto">
+        <!-- Main Card -->
+        <div
+            class="bg-[#3182F6] rounded-[28px] p-7 text-white shadow-lg shadow-blue-500/20 mb-6 relative overflow-hidden">
+            <div class="relative z-10">
+                <p class="text-blue-100 text-sm font-semibold mb-2">내 자산</p>
+                <h2 class="text-[40px] font-bold tracking-tight" id="disp-wallet-balance">0 BP</h2>
+            </div>
+            <!-- Deco -->
+            <div class="absolute -right-4 -bottom-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
+        </div>
+
+        <!-- Action Grid -->
+        <div class="grid grid-cols-2 gap-4 mb-8">
+            <button onclick="alert('준비 중입니다')"
+                class="bg-white p-5 rounded-[24px] shadow-sm flex flex-col items-center gap-3 btn-active">
+                <div class="w-10 h-10 rounded-full bg-[#FFF1F1] flex items-center justify-center text-xl">🎁</div>
+                <span class="text-[#4E5968] font-bold text-sm">쿠폰샵</span>
+            </button>
+            <button onclick="alert('준비 중입니다')"
+                class="bg-white p-5 rounded-[24px] shadow-sm flex flex-col items-center gap-3 btn-active">
+                <div class="w-10 h-10 rounded-full bg-[#E8F3FF] flex items-center justify-center text-xl">💸</div>
+                <span class="text-[#4E5968] font-bold text-sm">출금하기</span>
+            </button>
+        </div>
+
+        <h3 class="text-[#191F28] font-bold text-lg mb-4 px-1">최근 활동</h3>
+        <div class="bg-white rounded-[24px] p-2 shadow-sm min-h-[200px]" id="wallet-history-list"></div>
+    </div>
+
+    <!-- My Page View (Clean Forms) -->
+    <div id="view-my" class="hidden w-full h-full bg-[#F2F4F6] pt-32 pb-28 px-5 overflow-y-auto">
+        <!-- Guest State -->
+        <div id="my-guest-view" class="hidden">
+            <div class="bg-white rounded-[28px] p-8 shadow-toss">
+                <h2 class="text-2xl font-bold text-[#191F28] mb-2">시작하기</h2>
+                <p class="text-[#8B95A1] text-sm mb-8">블루핀의 모든 기능을 이용해보세요.</p>
+
+                <div class="space-y-4 mb-6">
+                    <div>
+                        <label class="block text-xs font-bold text-[#8B95A1] mb-2 pl-1">닉네임</label>
+                        <input type="text" id="signup-name" placeholder="닉네임 입력"
+                            class="w-full bg-[#F9FAFB] border-0 rounded-[16px] p-4 text-[15px] font-bold text-[#191F28] outline-none focus:ring-2 ring-[#3182F6]/20 transition-all">
+                    </div>
+                </div>
+                <input type="hidden" id="signup-role" value="USER">
+
+                <button onclick="doSignup()"
+                    class="w-full py-4 bg-[#3182F6] text-white font-bold rounded-[18px] text-[16px] btn-active shadow-lg shadow-blue-500/20 mb-6">
+                    시작하기
+                </button>
+                <div class="text-center">
+                    <button onclick="showLoginView()"
+                        class="text-xs text-[#8B95A1] font-semibold underline decoration-2 decoration-transparent hover:decoration-[#8B95A1]">이미
+                        계정이 있어요</button>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- [New Location] Owner Mode Button -->
+        <div class="mb-6 flex justify-end">
+            <button id="btn-owner-mode" onclick="toggleOwnerMode()"
+                class="ui-element bg-slate-800 text-yellow-400 px-4 py-2 rounded-full text-xs font-bold border border-yellow-500 shadow-lg animate-pulse">
+                👑 점주모드 전환
+            </button>
+        </div>
+
+        <!-- Login State -->
+        <div id="my-login-view" class="hidden">
+            <div class="bg-white rounded-[28px] p-8 shadow-toss">
+                <h2 class="text-2xl font-bold text-[#191F28] mb-2">로그인</h2>
+
+                <div class="space-y-4 mb-8 mt-6">
+                    <div>
+                        <label class="block text-xs font-bold text-[#8B95A1] mb-2 pl-1">닉네임</label>
+                        <input type="text" id="login-name" placeholder="닉네임 입력"
+                            class="w-full bg-[#F9FAFB] border-0 rounded-[16px] p-4 text-[15px] font-bold text-[#191F28] outline-none focus:ring-2 ring-[#3182F6]/20 transition-all"
+                            onkeydown="if(event.key === 'Enter') doLogin()">
+                    </div>
+                </div>
+                <button onclick="doLogin()"
+                    class="w-full py-4 bg-[#191F28] text-white font-bold rounded-[18px] text-[16px] btn-active mb-6">
+                    로그인
+                </button>
+                <div class="text-center">
+                    <button onclick="showSignupView()"
+                        class="text-xs text-[#8B95A1] font-semibold underline">처음이신가요?</button>
+                </div>
+            </div>
+            <!-- Owner Dashboard (Hidden by default) -->
+            <div id="owner-dashboard" class="hidden space-y-6">
+                <!-- Stats -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 text-center">
+                        <div class="text-2xl font-black text-blue-600">12</div>
+                        <div class="text-xs text-slate-500 font-bold mt-1">이벤트 등록</div>
+                    </div>
+                    <div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 text-center">
+                        <div class="text-2xl font-black text-purple-600">842</div>
+                        <div class="text-xs text-slate-500 font-bold mt-1">유저 클릭 수</div>
+                    </div>
+                </div>
+
+                <!-- Subscription Tiers -->
+                <div class="bg-slate-900 rounded-3xl p-6 text-white text-center relative overflow-hidden shadow-xl">
+                    <div class="absolute top-0 right-0 w-32 h-32 bg-yellow-500 blur-[60px] opacity-20 rounded-full">
+                    </div>
+                    <h3 class="text-lg font-bold mb-1">파트너 멤버십</h3>
+                    <p class="text-slate-400 text-xs mb-6">내 가게를 더 많이 알리세요!</p>
+
+                    <div class="space-y-3">
+                        <div
+                            class="bg-white/10 backdrop-blur-md p-4 rounded-2xl flex justify-between items-center border border-white/10 active:scale-95 transition-transform">
+                            <span class="text-sm font-bold text-slate-300">🥈 실버 (월 5회)</span>
+                            <span class="text-sm font-bold">10,000 BP</span>
+                        </div>
+                        <div
+                            class-="bg-gradient-to-r from-yellow-600/40 to-yellow-500/40 backdrop-blur-md p-4 rounded-2xl flex justify-between items-center border border-yellow-500/30 active:scale-95 transition-transform">
+                            <span class="text-sm font-bold text-yellow-400">🥇 골드 (월 15회)</span>
+                            <span class="text-sm font-bold text-yellow-100">25,000 BP</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Profile State -->
+        <div id="my-profile-view" class="hidden animate-[fadeIn_0.3s_ease-out]">
+            <div class="bg-white rounded-[28px] p-6 shadow-toss border border-white/50 mb-6 flex items-center gap-5">
+                <div class="w-16 h-16 rounded-full bg-[#E8F3FF] flex items-center justify-center text-3xl">😎</div>
+                <div>
+                    <h2 id="profile-name" class="text-xl font-bold text-[#191F28]">User</h2>
+                    <span
+                        class="inline-block mt-1 px-2 py-0.5 bg-[#F2F4F6] text-[#4E5968] text-[10px] font-bold rounded-md">인증
+                        회원</span>
+                </div>
+            </div>
+            <div class="w-full text-center py-10">
+                <p class="text-[0.7rem] text-[#B0B8C1]">BluePin v2.1 (Toss Design)</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. Bottom Nav (Floating Card) -->
+    <div
+        class="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-50 shadow-[0_-4px_24px_rgba(0,0,0,0.06)] z-[10000] flex justify-around items-end h-[90px] pb-6 ui-element rounded-t-[24px]">
+        <button onclick="showPage('MAP')" id="nav-btn-map"
+            class="nav-active flex flex-col items-center gap-1.5 w-16 h-auto justify-end btn-active">
+            <svg class="w-6 h-6 stroke-current" fill="none" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 7m0 13V7">
+                </path>
+            </svg>
+            <span class="text-[10px] font-bold">홈</span>
+        </button>
+        <button onclick="showPage('FEED')" id="nav-btn-feed"
+            class="nav-inactive flex flex-col items-center gap-1.5 w-16 h-auto justify-end btn-active">
+            <svg class="w-6 h-6 stroke-current" fill="none" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path>
+            </svg>
+            <span class="text-[10px] font-bold">피드</span>
+        </button>
+        <div class="w-16 relative -top-5 pointer-events-none"></div> <!-- Spacer -->
+        <button onclick="showPage('WALLET')" id="nav-btn-wallet"
+            class="nav-inactive flex flex-col items-center gap-1.5 w-16 h-auto justify-end btn-active">
+            <svg class="w-6 h-6 stroke-current" fill="none" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
+            </svg>
+            <span class="text-[10px] font-bold">지갑</span>
+        </button>
+        <button onclick="showPage('MY')" id="nav-btn-my"
+            class="nav-inactive flex flex-col items-center gap-1.5 w-16 h-auto justify-end btn-active">
+            <svg class="w-6 h-6 stroke-current" fill="none" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+            </svg>
+            <span class="text-[10px] font-bold">전체</span>
+        </button>
+    </div>
+
+    <!-- MAIN FAB (Floating Big Button) -->
+    <div id="fab-main-add"
+        class="fixed bottom-[35px] left-1/2 -translate-x-1/2 z-[10050] transition-transform duration-300">
+        <button onclick="handleFabClick()"
+            class="w-[68px] h-[68px] bg-[#3182F6] rounded-full flex items-center justify-center text-white active:scale-90 transition-all hover:bg-[#2563eb] shadow-[0_8px_24px_rgba(49,130,246,0.5)] ring-4 ring-white">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 5v14M5 12h14" />
+            </svg>
+        </button>
+    </div>
+
+    <!-- Pin Creation Modal (Restored Dual Mode) -->
+    <div id="pin-creation-modal"
+        class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[30000] hidden flex items-center justify-center p-6 opacity-0 transition-opacity duration-300">
+        <div
+            class="bg-white rounded-[32px] p-6 w-full max-w-sm shadow-2xl transform scale-95 transition-transform duration-300">
+            <h3 class="text-xl font-bold text-slate-900 border-b border-slate-50 pb-4 mb-4 text-center">핀 생성하기</h3>
+
+            <!-- Option Selection -->
+            <div class="space-y-4" id="pin-type-selection">
+                <!-- Option A: Question -->
+                <button onclick="selectPinType('QUESTION')"
+                    class="w-full flex items-center justify-between p-5 bg-blue-50 hover:bg-blue-100 rounded-2xl border border-blue-100 transition-all active:scale-95 group">
+                    <div class="text-left">
+                        <span class="block text-2xl mb-1">❓</span>
+                        <span class="block text-lg font-black text-slate-900 group-hover:text-blue-600">궁금해요
+                            (Question)</span>
+                        <span class="block text-xs font-bold text-slate-400">내 포인트 사용 • 파란색 핀</span>
+                    </div>
+                </button>
+
+                <!-- Option B: Live -->
+                <button onclick="selectPinType('LIVE')"
+                    class="w-full flex items-center justify-between p-5 bg-yellow-50 hover:bg-yellow-100 rounded-2xl border border-yellow-100 transition-all active:scale-95 group">
+                    <div class="text-left">
+                        <span class="block text-2xl mb-1">📢</span>
+                        <span class="block text-lg font-black text-slate-900 group-hover:text-yellow-600">사장님 라이브
+                            (Live)</span>
+                        <span class="block text-xs font-bold text-slate-400">무료 (이벤트) • 골드 핀</span>
+                    </div>
+                </button>
+            </div>
+
+            <!-- Form: Question (Hidden initially) -->
+            <div id="form-question" class="hidden space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">제목</label>
+                    <input type="text" id="q-title" placeholder="예: 지금 줄 얼마나 긴가요?"
+                        class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">보상 포인트 (BP)</label>
+                    <div class="flex gap-2">
+                        <div
+                            class="w-full py-3 bg-blue-50 text-blue-600 font-black text-center rounded-xl border border-blue-100">
+                            0 BP (Beta Free)
+                        </div>
+                    </div>
+                </div>
+                <input type="hidden" id="q-reward" value="0">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">유효 시간</label>
+                    <select id="q-duration"
+                        class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold outline-none">
+                        <option value="1">1시간</option>
+                        <option value="3">3시간</option>
+                        <option value="24">24시간</option>
+                    </select>
+                </div>
+                <button onclick="submitPin('QUESTION')"
+                    class="w-full py-4 bg-blue-600 text-white font-bold rounded-xl shadow-lg shadow-blue-500/30">핀
+                    생성하기</button>
+            </div>
+
+            <!-- Form: Live (Hidden initially) -->
+            <div id="form-live" class="hidden space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">라이브 제목</label>
+                    <input type="text" id="l-title" placeholder="예: 타임세일 시작합니다!"
+                        class="w-full bg-yellow-50 border border-yellow-200 rounded-xl p-3 text-sm font-bold outline-none focus:border-yellow-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">내용</label>
+                    <textarea id="l-desc" placeholder="내용을 입력하세요"
+                        class="w-full bg-yellow-50 border border-yellow-200 rounded-xl p-3 text-sm font-bold outline-none h-20 resize-none"></textarea>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">노출 시간</label>
+                    <select id="l-duration"
+                        class="w-full bg-yellow-50 border border-yellow-200 rounded-xl p-3 text-sm font-bold outline-none">
+                        <option value="0.5">30분</option>
+                        <option value="1">1시간</option>
+                    </select>
+                </div>
+                <button onclick="submitPin('LIVE')"
+                    class="w-full py-4 bg-yellow-500 text-white font-bold rounded-xl shadow-lg shadow-yellow-500/30">라이브
+                    시작 (무료)</button>
+            </div>
+
+            <button onclick="closePinCreationModal()"
+                class="mt-4 w-full py-3 rounded-xl text-slate-400 font-bold text-sm hover:text-slate-600">취소하기</button>
+        </div>
+    </div>
+
+    <!-- Pin Detail Modal -->
+    <div id="pin-detail-modal"
+        class="fixed inset-0 z-[10006] hidden flex items-center justify-center bg-black/40 backdrop-blur-sm px-5">
+        <div class="bg-white p-8 rounded-[32px] shadow-floating w-full max-w-xs relative overflow-hidden"
+            id="pin-detail-content">
+            <!-- Deco -->
+            <div class="absolute top-0 left-0 w-full h-2 bg-[#3182F6]"></div>
+
+            <div class="text-center mt-2">
+                <div class="w-14 h-14 bg-[#E8F3FF] rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+                    ❓</div>
+                <h3 class="text-xl font-bold text-[#191F28] mb-1 leading-tight" id="pin-detail-title">Detail</h3>
+                <p class="text-xs text-[#8B95A1] font-bold mb-8" id="pin-detail-requester">User</p>
+
+                <div id="pin-detail-buttons" class="space-y-3">
+                    <!-- Dynamic Content -->
+                </div>
+
+                <button onclick="closePinDetail()"
+                    class="mt-5 text-[#8B95A1] text-xs font-bold px-4 py-2 bg-[#F2F4F6] rounded-full">닫기</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chat Modal -->
+    <div id="chat-modal" class="fixed inset-0 z-[10010] hidden flex flex-col bg-[#F2F4F6]">
+        <!-- Header -->
+        <div
+            class="px-5 pt-safe-top pb-4 bg-white border-b border-[#F2F4F6] flex justify-between items-center shadow-sm sticky top-0 z-10">
+            <button onclick="closeChatModal()" class="w-10 h-10 flex items-center justify-center -ml-2 text-[#333D4B]">
+                <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <path d="M15 19l-7-7 7-7" />
+                </svg>
+            </button>
+            <span class="font-bold text-lg text-[#191F28]" id="chat-user-name">User</span>
+            <button onclick="completeMission()" id="btn-complete-mission"
+                class="bg-[#3182F6] text-white text-[12px] font-bold px-4 py-2 rounded-full shadow-lg shadow-blue-500/30 btn-active">지급
+                승인</button>
+        </div>
+
+        <!-- Body -->
+        <div id="chat-body" class="flex-1 overflow-y-auto p-5 space-y-4 pb-32"></div>
+
+        <!-- Input -->
+        <div
+            class="absolute bottom-0 w-full px-4 py-3 bg-white border-t border-[#F2F4F6] flex items-center gap-2 pb-safe-bottom">
+            <!-- Camera Button -->
+            <button onclick="triggerCamera()"
+                class="p-2 text-[#8B95A1] hover:text-[#333D4B] flex items-center justify-center shrink-0">
+                <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+            </button>
+            <input type="file" id="chat-camera-input" accept="image/*" capture="environment" class="hidden"
+                onchange="handleImageUpload(this)">
+
+            <input type="text" id="chat-input-text" onkeypress="if(event.key==='Enter') sendMessage()"
+                class="flex-1 bg-[#F2F4F6] border-0 rounded-[20px] px-4 py-2.5 outline-none text-[#191F28] min-w-0"
+                placeholder="메시지...">
+            <button onclick="sendMessage()"
+                class="w-10 h-10 bg-[#3182F6] rounded-full text-white flex items-center justify-center shadow-lg btn-active shrink-0">
+                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path d="M5 12h14M12 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT BLOCK (PRESERVED) -->
+    <script>
+        const socket = io();
+        let map;
+        let markersCluster;
+        let myLocalMarkers = {}; // Pins
+        let realUserMarkers = {}; // Real Users (Green)
+
+        let currentState = {
+            user: null, // { nickname, balance, ... }
+            pins: []
+        };
+
+        // Chat Variables
+        let currentChatContext = {
+            missionId: null,
+            runnerName: null, // Who is the runner (if I am requester)
+            requesterName: null, // Who is requester (if I am runner)
+            role: 'REQUESTER' // 'REQUESTER' or 'RUNNER'
+        };
+
+        // --- 1. Initialization & Auth ---
+
+        window.onload = function () {
+            initMap();
+            checkAuth();
+
+            // Socket Events
+            socket.on('connect', () => {
+                console.log("Socket Connected");
+                const user = getMyUser();
+                if (user) socket.emit('join', user);
+            });
+
+            socket.on('pinCreated', (pin) => {
+                renderPin(pin);
+            });
+
+            socket.on('pinDeleted', (pinId) => {
+                if (myLocalMarkers[pinId]) {
+                    map.removeLayer(myLocalMarkers[pinId]); // Standard remove
+                    markersCluster.removeLayer(myLocalMarkers[pinId]); // Cluster remove
+                    delete myLocalMarkers[pinId];
+                }
+            });
+
+            socket.on('payoutNotification', (data) => {
+                // Determine if this concerns me regarding notification
+                const me = getMyUser();
+                if (me && data.runnerName === me) {
+                    alert(`💰 정산 완료! ${data.amount} BP가 입금되었습니다.`);
+                    refreshWallet();
+                }
+            });
+
+            // [Feature] Real User Visibility
+            socket.on('userMoved', (data) => {
+                // data = { nickname, lat, lng }
+                if (data.nickname === getMyUser()) return; // Ignore myself
+                renderRealUser(data);
+            });
+
+            // Start Broadcasting
+            trackUserLocation();
+        };
+
+        // [Feature] Location Broadcast
+        function trackUserLocation() {
+            if (!navigator.geolocation) return;
+            navigator.geolocation.watchPosition((pos) => {
+                const me = getMyUser();
+                if (!me) return;
+
+                const lat = pos.coords.latitude;
+                const lng = pos.coords.longitude;
+
+                // Emit to Server
+                socket.emit('updateLocation', { nickname: me, lat, lng });
+
+                // (Optional) Move my own view or marker? No, kept simple.
+            }, (err) => {
+                console.warn("Location access denied or error", err);
+            }, { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 });
+        }
+
+        // [Feature] Render Real User
+        function renderRealUser(user) {
+            // Check if exists
+            if (realUserMarkers[user.nickname]) {
+                // Move it
+                const marker = realUserMarkers[user.nickname];
+                marker.setLatLng([user.lat, user.lng]);
+                return;
+            }
+
+            // Create New
+            const iconHtml = `
+                <div class="relative w-9 h-9">
+                    <div class="absolute inset-0 bg-green-300 rounded-full animate-pulse opacity-40"></div>
+                    <div class="relative w-full h-full bg-[#10B981] rounded-full border-[2px] border-white shadow-md flex items-center justify-center text-white text-sm">
+                        👤
+                    </div>
+                </div>`;
+
+            const icon = L.divIcon({ html: iconHtml, className: 'bg-transparent', iconSize: [36, 36] });
+            const marker = L.marker([user.lat, user.lng], { icon }).addTo(map);
+
+            marker.bindPopup(`
+                <div class="text-center p-1 min-w-[120px]">
+                    <div class="font-bold text-[#191F28] mb-1">${user.nickname}</div>
+                    <div class="text-xs text-[#10B981] mb-2">🟢 접속중 (실사용자)</div>
+                    <button onclick="startDirectChat('${user.nickname}')" class="w-full bg-[#10B981] text-white text-xs font-bold py-1.5 rounded-lg active:scale-95 transition-transform">
+                        1:1 질문하기
+                    </button>
+                </div>
+            `);
+
+            realUserMarkers[user.nickname] = marker;
+        }
+
+        function getMyUser() {
+            return localStorage.getItem('bluepin_user');
+        }
+
+        async function checkAuth() {
+            const nickname = getMyUser();
+            const guestView = document.getElementById('my-guest-view');
+            const loginView = document.getElementById('my-login-view');
+            const profileView = document.getElementById('my-profile-view');
+            const headerLeft = document.getElementById('header-left');
+            const headerRight = document.getElementById('header-right');
+
+            if (!nickname) {
+                // Guest Mode
+                guestView.classList.remove('hidden');
+                profileView.classList.add('hidden');
+                loginView.classList.add('hidden');
+                headerLeft.innerHTML = `Guest`;
+                headerRight.innerHTML = `<span onclick="showPage('MY')" class="text-[#3182F6] text-xs font-bold">로그인</span>`;
+            } else {
+                // Logged In -> Sync with Server
+                await refreshWallet();
+
+                guestView.classList.add('hidden');
+                loginView.classList.add('hidden');
+                profileView.classList.remove('hidden');
+
+                document.getElementById('profile-name').innerText = nickname;
+                headerLeft.innerHTML = `<span class="text-[#3182F6] font-bold">${nickname}</span>`;
+                headerRight.innerHTML = `<button onclick="doLogout()" class="text-[#B0B8C1] text-xs font-semibold">로그아웃</button>`;
+            }
+        }
+
+        // [Secure] Refresh Wallet from Server
+        async function refreshWallet() {
+            const nickname = getMyUser();
+            if (!nickname) return;
+
+            try {
+                const res = await fetch(`/api/state/${nickname}`);
+                const data = await res.json();
+
+                if (data) {
+                    currentState.user = { nickname, balance: data.walletBalance }; // Map back
+                    updateBalanceUI(data.walletBalance);
+                }
+            } catch (e) {
+                console.error("Failed to sync wallet", e);
+            }
+        }
+
+        function updateBalanceUI(amount) {
+            document.getElementById('disp-wallet-balance').innerText = `${amount.toLocaleString()} BP`;
+        }
+
+        // --- 2. Auth Actions ---
+
+        function showLoginView() {
+            document.getElementById('my-guest-view').classList.add('hidden');
+            document.getElementById('my-login-view').classList.remove('hidden');
+        }
+
+        function showSignupView() {
+            document.getElementById('my-login-view').classList.add('hidden');
+            document.getElementById('my-guest-view').classList.remove('hidden');
+        }
+
+        async function doLogin() {
+            const nameInput = document.getElementById('login-name');
+            const nickname = nameInput.value.trim();
+            if (!nickname) return alert("닉네임을 입력하세요");
+
+            await performAuth(nickname, 'USER');
+        }
+
+        async function doSignup() {
+            const nameInput = document.getElementById('signup-name');
+            const nickname = nameInput.value.trim();
+            if (!nickname) return alert("닉네임을 입력하세요");
+
+            await performAuth(nickname, 'USER');
+        }
+
+        async function performAuth(nickname, role) {
+            try {
+                const res = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nickname, role })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    localStorage.setItem('bluepin_user', data.user.nickname || nickname); // Fallback
+                    location.reload(); // Simple reload to init fresh
+                }
+            } catch (e) {
+                alert("Login Failed: " + e.message);
+            }
+        }
+
+        function doLogout() {
+            localStorage.removeItem('bluepin_user');
+            location.reload();
+        }
+
+        // --- 3. Map & Pins ---
+
+        function initMap() {
+            map = L.map('map', { zoomControl: false }).setView([37.5445, 127.0561], 15);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+            markersCluster = L.markerClusterGroup({ showCoverageOnHover: false });
+            map.addLayer(markersCluster);
+
+            // [Feature] Click Map to Pick Location
+            map.on('click', (e) => {
+                if (searchMarker) map.removeLayer(searchMarker);
+
+                const iconHtml = `
+                    <div class="relative w-8 h-8">
+                        <div class="absolute inset-0 bg-red-500 rounded-full animate-ping opacity-75"></div>
+                        <div class="relative w-8 h-8 bg-red-600 rounded-full border-2 border-white shadow-lg flex items-center justify-center text-white font-bold">📍</div>
+                    </div>`;
+                const icon = L.divIcon({ html: iconHtml, className: 'bg-transparent', iconSize: [32, 32], iconAnchor: [16, 16] });
+
+                searchMarker = L.marker(e.latlng, { icon }).addTo(map);
+
+                // Show popup to prompt action
+                searchMarker.bindPopup(`<div class="text-center font-bold text-sm cursor-pointer" onclick="openPinCreationModal()">여기 질문하기</div>`).openPopup();
+            });
+
+            // Load Pins
+            loadActivePins();
+
+            // [Feature] Ghost Runners (Simulation)
+            simulateGhostRunners();
+
+            // [Fix] Hide Splash Screen after map init
+            setTimeout(hideSplash, 1000);
+        }
+
+        // [Feature] Ghost Runners Logic
+        let ghostRunners = [];
+
+        function simulateGhostRunners() {
+            const center = map.getCenter(); // {lat, lng}
+            const count = 5;
+
+            for (let i = 0; i < count; i++) {
+                // Random offset within ~500m
+                const lat = center.lat + (Math.random() - 0.5) * 0.006;
+                const lng = center.lng + (Math.random() - 0.5) * 0.006;
+
+                const runner = {
+                    id: 'ghost_' + i,
+                    name: ['Runner_Kim', 'Fast_Lee', 'Helper_Park', 'Sky_Walker', 'Blue_Runner'][i],
+                    lat: lat,
+                    lng: lng,
+                    score: (4.0 + Math.random()).toFixed(1)
+                };
+                ghostRunners.push(runner);
+                renderRunner(runner);
+            }
+        }
+
+        function renderRunner(runner) {
+            const iconHtml = `
+                <div class="relative w-9 h-9">
+                    <div class="absolute inset-0 bg-blue-300 rounded-full animate-pulse opacity-40"></div>
+                    <div class="relative w-full h-full bg-[#3182F6] rounded-full border-[2px] border-white shadow-md flex items-center justify-center text-white text-sm">
+                        🏃
+                    </div>
+                </div>`;
+
+            const icon = L.divIcon({ html: iconHtml, className: 'bg-transparent', iconSize: [36, 36] });
+            const marker = L.marker([runner.lat, runner.lng], { icon }).addTo(map);
+
+            marker.bindPopup(`
+                <div class="text-center p-1 min-w-[120px]">
+                    <div class="font-bold text-[#191F28] mb-1">${runner.name}</div>
+                    <div class="text-xs text-[#8B95A1] mb-2">⭐ ${runner.score} (활동중)</div>
+                    <button onclick="startDirectChat('${runner.name}')" class="w-full bg-[#3182F6] text-white text-xs font-bold py-1.5 rounded-lg active:scale-95 transition-transform">
+                        1:1 질문하기
+                    </button>
+                </div>
+            `);
+        }
+
+        function startDirectChat(runnerName) {
+            if (!confirm(\`\${runnerName}님에게 직접 질문하시겠습니까?\`)) return;
+            
+            // Start Direct Chat
+            currentChatContext = {
+                missionId: 'DIRECT_' + Date.now(),
+                role: 'REQUESTER',
+                requesterName: getMyUser(),
+                runnerName: runnerName
+            };
+            openChatUI(runnerName, "안녕하세요! 프로필 보고 연락드립니다.");
+        }
+
+        async function loadActivePins() {
+            try {
+                const res = await fetch('/api/pins');
+                const pins = await res.json();
+                if (Array.isArray(pins)) {
+                    pins.forEach(p => renderPin(p));
+                }
+            } catch (e) { console.warn("Pins load error (Server might need update)", e); }
+        }
+
+        function renderPin(pin) {
+            if (pin.status === 'SOLVED') return; // Don't show solved
+            if (myLocalMarkers[pin.id]) return; // Dedup
+
+            const isMine = (pin.creator && pin.creator.name === getMyUser());
+            const isLive = (pin.type === 'LIVE');
+
+            // Updated Pin Visual
+            let colorBg = isMine ? 'bg-[#3182F6]' : 'bg-white';
+            let colorText = isMine ? 'text-white' : 'text-[#3182F6]';
+            let ringColor = 'text-[#3182F6]';
+            let iconChar = isMine ? 'ME' : '❓'; // [Fix] Reverted to Question Mark
+
+            if (isLive) {
+                colorBg = isMine ? 'bg-yellow-500' : 'bg-white';
+                colorText = isMine ? 'text-white' : 'text-yellow-600';
+                ringColor = 'text-yellow-500';
+                iconChar = '📢';
+            }
+
+            const iconHtml = `
+                < div class= "relative w-10 h-10" >
+                    <div class="absolute inset-0 rounded-full opacity-30 ${isMine ? 'animate-pulse' : ''} ${isLive ? 'bg-yellow-500' : 'bg-[#3182F6]'}"></div>
+                    <div class="${colorBg} relative w-full h-full rounded-full border-[3px] ${isLive ? 'border-yellow-200' : 'border-white'} shadow-lg flex items-center justify-center ${colorText} font-bold text-lg">
+                        ${iconChar}
+                    </div>
+                </div > `;
+
+            const icon = L.divIcon({ html: iconHtml, className: 'bg-transparent', iconSize: [40, 40], iconAnchor: [20, 20] });
+            const marker = L.marker([pin.latitude, pin.longitude], { icon });
+
+            marker.on('click', () => openPinDetail(pin));
+            markersCluster.addLayer(marker);
+            myLocalMarkers[pin.id] = marker;
+        }
+
+        // --- 4. Pin Creation ---
+
+        // [Fix 3] Interaction Flow
+        function handleFabClick() {
+            if (!searchMarker) {
+                // Use Center
+                // alert("지도의 중앙에 핀을 생성합니다."); // Optional Toast
+            }
+            openPinCreationModal();
+        }
+
+        function openPinCreationModal() {
+            if (!getMyUser()) { alert("로그인이 필요합니다"); showPage('MY'); return; }
+            const modal = document.getElementById('pin-creation-modal');
+            modal.classList.remove('hidden');
+            // [Fix 2] Remove opacity-0 to make it visible and clickable
+            setTimeout(() => modal.classList.remove('opacity-0'), 10);
+
+            // Reset to selection view
+            document.getElementById('pin-type-selection').classList.remove('hidden');
+            document.getElementById('form-question').classList.add('hidden');
+            document.getElementById('form-live').classList.add('hidden');
+        }
+
+        function closePinCreationModal() {
+            const modal = document.getElementById('pin-creation-modal');
+            modal.classList.add('opacity-0');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+
+        async function refreshWallet() {
+            const me = getMyUser();
+            if (!me) return;
+
+            // [Fix 1] Fetch real balance from server
+            try {
+                const res = await fetch(`/ api / state / ${ me }`);
+                const data = await res.json();
+                if (data.walletBalance !== undefined) {
+                    const el = document.getElementById('disp-wallet-balance');
+                    if (el) el.innerText = data.walletBalance.toLocaleString() + " BP";
+                }
+            } catch (e) { console.error("Wallet sync failed", e); }
+        }
+
+        function selectPinType(type) {
+            document.getElementById('pin-type-selection').classList.add('hidden');
+            if (type === 'QUESTION') {
+                document.getElementById('form-question').classList.remove('hidden');
+            } else {
+                document.getElementById('form-live').classList.remove('hidden');
+            }
+        }
+
+        // Owner Mode Logic
+        function toggleOwnerMode() {
+            const dashboard = document.getElementById('owner-dashboard');
+            const btn = document.getElementById('btn-owner-mode');
+
+            if (dashboard.classList.contains('hidden')) {
+                dashboard.classList.remove('hidden');
+                btn.classList.add('ring-4', 'ring-yellow-400/50');
+                btn.innerText = "👑 점주모드 ON";
+            } else {
+                dashboard.classList.add('hidden');
+                btn.classList.remove('ring-4', 'ring-yellow-400/50');
+                btn.innerText = "👑 점주모드";
+            }
+        }
+
+        async function submitPin(type) {
+            let title, content, reward, duration;
+
+            if (type === 'QUESTION') {
+                title = document.getElementById('q-title').value;
+                reward = 0;
+                duration = parseInt(document.getElementById('q-duration').value);
+                content = ""; // Questions don't have content field
+            } else { // LIVE
+                title = document.getElementById('l-title').value;
+                content = document.getElementById('l-desc').value;
+                reward = 0; // Live pins are free
+                duration = parseFloat(document.getElementById('l-duration').value);
+            }
+
+            const creatorName = getMyUser();
+
+            if (!title) return alert("제목을 입력해주세요");
+
+            let lat, lng;
+            if (searchMarker) {
+                lat = searchMarker.getLatLng().lat;
+                lng = searchMarker.getLatLng().lng;
+            } else {
+                // [Fix 3] Use Map Center if no marker
+                const center = map.getCenter();
+                lat = center.lat;
+                lng = center.lng;
+            }
+
+            try {
+                const res = await fetch('/api/pins', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        title,
+                        content,
+                        latitude: lat,
+                        longitude: lng,
+                        durationMinutes: duration * 60,
+                        type: type,
+                        rewardAmount: reward,
+                        creatorName: creatorName
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert(type === 'LIVE' ? "📢 라이브 홍보가 시작되었습니다! (골드핀)" : "핀이 생성되었습니다!");
+                    closePinCreationModal();
+                    refreshWallet();
+
+                    if (type === 'QUESTION') {
+                        // Simulation Trigger (Ghost Runner Match)
+                        setTimeout(() => {
+                            // Show "Runner Matched" Notification
+                            const uniqueId = Date.now();
+                            const banner = document.getElementById('notification-banner');
+                            banner.classList.remove('-translate-y-[300%]');
+
+                            document.getElementById('noti-title').innerText = "러너가 매칭되었습니다! 🎉";
+                            document.getElementById('noti-desc').innerText = "Ghost_Runner님이 답변을 준비 중입니다. (터치하여 채팅)";
+
+                            banner.onclick = () => {
+                                banner.classList.add('-translate-y-[300%]');
+                                // Open Chat directly as Requester
+                                currentChatContext = {
+                                    missionId: uniqueId,
+                                    role: 'REQUESTER', // I am the Requester
+                                    requesterName: getMyUser(), // I am Requester
+                                    runnerName: "Ghost_Runner" // Other is Runner
+                                };
+                                openChatUI("Ghost_Runner", data.pin.title); // Pass my question to show in chat
+
+                                // Simulate Runner's Greeting after a delay
+                                setTimeout(() => {
+                                    addOtherMessage("안녕하세요! 근처에 있어서 바로 답변 드릴 수 있습니다. 무엇이 궁금하신가요?");
+                                }, 1000);
+                            };
+
+                            // Auto hide banner after 7s
+                            setTimeout(() => banner.classList.add('-translate-y-[300%]'), 7000);
+
+                        }, 5000);
+                    }
+                } else {
+                    alert("실패: " + data.message);
+                }
+            } catch (e) { alert("Error: " + e.message); }
+        }
+
+        // --- 5. Detail & Chat ---
+
+        function openPinDetail(pin) {
+            document.getElementById('pin-detail-modal').classList.remove('hidden');
+            document.getElementById('pin-detail-title').innerText = pin.title;
+            document.getElementById('pin-detail-requester').innerText = pin.creator.name || 'Unknown';
+
+            const container = document.getElementById('pin-detail-buttons');
+            const isMine = (pin.creator.name === getMyUser());
+
+            if (isMine) {
+                container.innerHTML = `< div class= "text-sm text-center text-[#8B95A1] font-medium bg-[#F2F4F6] p-3 rounded-xl" > 내 핀입니다(답변 대기 중)</div >
+            <button onclick="deletePin(${pin.id})" class="w-full bg-[#E5E8EB] py-3 rounded-[16px] mt-2 font-bold text-[#8B95A1] hover:bg-red-50 hover:text-red-500 transition-colors">삭제</button>`;
+            } else {
+                container.innerHTML = `< button onclick = "acceptMission(${pin.id}, '${pin.creator.name}', '${pin.title.replace(/'/g, "\\'")}')" class="w - full bg - [#3182F6] text - white py - 4 rounded - [16px] font - bold shadow - lg text - [16px] btn - active">채팅으로 답변하기 (+${pin.rewardAmount})</button>`;
+        }
+        }
+        }
+
+        function closePinDetail() { document.getElementById('pin-detail-modal').classList.add('hidden'); }
+
+        async function deletePin(pinId) {
+            if (!confirm("핀을 삭제하시겠습니까?")) return;
+            // ... API call ...
+            const requesterName = getMyUser();
+            await fetch(`/api/pins/${pinId}`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ requesterName })
+            });
+            closePinDetail();
+        }
+
+        function acceptMission(pinId, requesterName, initialMessage) {
+            // I am the Runner
+            currentChatContext = {
+                missionId: pinId,
+                role: 'RUNNER',
+                requesterName: requesterName,
+                runnerName: getMyUser()
+            };
+            openChatUI(requesterName, initialMessage);
+            closePinDetail();
+        }
+
+        // --- 6. Chat Logic & Payout ---
+
+        function openChatUI(otherName, initialMessage) {
+            document.getElementById('chat-modal').classList.remove('hidden');
+            document.getElementById('fab-main-add').classList.add('hidden'); // Hide FAB
+            document.getElementById('chat-user-name').innerText = otherName;
+
+            const chatBody = document.getElementById('chat-body');
+            chatBody.innerHTML = `
+                <div class="flex justify-center my-4">
+                    <span class="bg-[#F2F4F6] text-[#8B95A1] text-[10px] px-3 py-1 rounded-full font-bold">안심 에스크로 채팅 시작</span>
+                </div>
+            `;
+
+            // Allow auto-injection of initial message (Question)
+            if (initialMessage) {
+                setTimeout(() => addOtherMessage(initialMessage), 300);
+            }
+
+            // Buttons logic
+            const btn = document.getElementById('btn-complete-mission');
+            if (currentChatContext.role === 'RUNNER') {
+                btn.classList.add('hidden');
+            } else {
+                btn.classList.remove('hidden');
+            }
+        }
+
+
+
+        function closeChatModal() {
+            document.getElementById('chat-modal').classList.add('hidden');
+            // Restore FAB if on Map
+            if (document.getElementById('nav-btn-map').classList.contains('nav-active')) {
+                document.getElementById('fab-main-add').classList.remove('hidden');
+            }
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('chat-input-text');
+            const text = input.value;
+            if (!text) return;
+
+            // Append My Message
+            const div = document.createElement('div');
+            div.className = "flex justify-end mb-2";
+            div.innerHTML = `<div class="bg-[#3182F6] text-white px-4 py-2.5 rounded-[18px] rounded-tr-sm max-w-[80%] shadow-sm text-[15px]">${text}</div>`;
+            document.getElementById('chat-body').appendChild(div);
+
+            input.value = '';
+
+            // Simulate Reply if Mock
+            if (currentChatContext.role === 'RUNNER' && currentChatContext.runnerName === getMyUser()) {
+                setTimeout(() => {
+                    // 1. Ghost Reply
+                    addOtherMessage("오! 감사합니다. 확인했습니다. 👍");
+
+                    // 2. Auto Payout Sequence
+                    setTimeout(() => {
+                        addSystemMessage(`🎉 <b>${currentChatContext.requesterName}</b>님이 만족하여 1,000 BP를 지급했습니다!<br><span class='text-[#8B95A1] text-xs'>(수수료 200 BP 차감)</span>`);
+
+                        // Update Wallet Locally (Visual) + Trigger Confetti
+                        const reward = 800; // 1000 - 20%
+                        addToHistoryUI("미션 성공 보상", reward, "EARN");
+                        triggerConfetti();
+
+                        // Refresh real server wallet just in case
+                        setTimeout(refreshWallet, 500);
+
+                    }, 1500);
+                }, 1000);
+            }
+        }
+
+        function addOtherMessage(msg) {
+            const div = document.createElement('div');
+            div.className = "flex justify-start mb-2 animate-[slideUp_0.3s_ease-out]";
+            div.innerHTML = `<div class="bg-white border border-[#E5E8EB] text-[#333D4B] px-4 py-2.5 rounded-[18px] rounded-tl-sm max-w-[80%] shadow-sm text-[15px]">${msg}</div>`;
+            document.getElementById('chat-body').appendChild(div);
+            scrollToBottom();
+        }
+
+        function addSystemMessage(html) {
+            const div = document.createElement('div');
+            div.className = "flex justify-center my-4 animate-[fadeIn_0.5s]";
+            div.innerHTML = `<div class="bg-[#E8F3FF] text-[#3182F6] text-center px-4 py-3 rounded-[16px] text-sm leading-relaxed border border-blue-100 shadow-sm">${html}</div>`;
+            document.getElementById('chat-body').appendChild(div);
+            scrollToBottom();
+        }
+
+        function scrollToBottom() {
+            const chatBody = document.getElementById('chat-body');
+            chatBody.scrollTop = chatBody.scrollHeight;
+        }
+
+        function addToHistoryUI(title, amount, type) {
+            const list = document.getElementById('wallet-history-list');
+            if (!list) return;
+            const isEarn = type === 'EARN';
+            const html = `
+                <div class="flex justify-between items-center p-4 border-b border-[#F2F4F6] last:border-0">
+                    <div>
+                        <p class="font-bold text-[#333D4B] text-[15px]">${title}</p>
+                        <p class="text-xs text-[#8B95A1] mt-0.5">${new Date().toLocaleTimeString()}</p>
+                    </div>
+                    <span class="font-bold text-[16px] ${isEarn ? 'text-[#3182F6]' : 'text-[#333D4B]'}">
+                        ${isEarn ? '+' : ''}${amount.toLocaleString()} BP
+                    </span>
+                </div>
+            `;
+            list.insertAdjacentHTML('afterbegin', html);
+        }
+
+        function triggerConfetti() {
+            // Simple Confetti using CSS/JS DOM
+            for (let i = 0; i < 30; i++) {
+                const c = document.createElement('div');
+                c.style.position = 'fixed';
+                c.style.left = Math.random() * 100 + 'vw';
+                c.style.top = '-10px';
+                c.style.width = '8px';
+                c.style.height = '15px';
+                c.style.backgroundColor = ['#3182F6', '#FF4F4F', '#FFD12D', '#4ADE80'][Math.floor(Math.random() * 4)];
+                c.style.zIndex = '99999';
+                c.style.transform = `rotate(${Math.random() * 360}deg)`;
+                c.style.animation = `fall ${1 + Math.random() * 2}s linear forwards`;
+                document.body.appendChild(c);
+                setTimeout(() => c.remove(), 3000);
+            }
+        }
+
+        async function completeMission() {
+            // Only for Requester
+            if (!confirm("1,000 BP를 지급하시겠습니까? (수수료 제외 후 800 BP 지급)")) return;
+
+            // In real app, we know runner from chat room. Here we assume sim or passed data.
+            const runnerName = currentChatContext.runnerName || 'Runner_Sim';
+
+            try {
+                const res = await fetch('/api/payout', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        pinId: currentChatContext.missionId,
+                        amount: 1000,
+                        runnerName: runnerName // [Critical] must match server expectation
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert("지급 완료!");
+                    closeChatModal();
+                    // [Fix 1] Refresh Wallet
+                    await refreshWallet();
+                    // Remove marker physically
+                    if (myLocalMarkers[currentChatContext.missionId]) {
+                        map.removeLayer(myLocalMarkers[currentChatContext.missionId]);
+                        delete myLocalMarkers[currentChatContext.missionId];
+                    }
+                } else {
+                    alert("지급 실패: " + data.message);
+                }
+            } catch (e) { alert("Error: " + e.message); }
+        }
+
+        // --- Utils ---
+        function showPage(page) {
+            ['map', 'feed', 'wallet', 'my'].forEach(p => {
+                document.getElementById('view-' + p).classList.add('hidden');
+                document.getElementById('nav-btn-' + p).classList.remove('nav-active');
+                document.getElementById('nav-btn-' + p).classList.add('nav-inactive');
+            });
+            document.getElementById('view-' + page.toLowerCase()).classList.remove('hidden');
+            const activeBtn = document.getElementById('nav-btn-' + page.toLowerCase());
+            activeBtn.classList.add('nav-active');
+            activeBtn.classList.remove('nav-inactive');
+
+            if (page === 'MAP') {
+                setTimeout(() => map && map.invalidateSize(), 100);
+                document.getElementById('fab-main-add').classList.remove('hidden');
+                document.getElementById('search-container').classList.remove('hidden');
+            } else {
+                document.getElementById('fab-main-add').classList.add('hidden');
+                document.getElementById('search-container').classList.add('hidden');
+            }
+        }
+
+        let searchMarker; // Add global var for search
+
+        function searchLoc() {
+            // Simple Nominatim with Seoul Bias
+            const q = document.getElementById('searchInput').value;
+            if (!q) return;
+            // Seoul Bounding Box: 126.7,37.4,127.3,37.7
+            fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${q}&countrycodes=kr&viewbox=126.766967,37.428131,127.183761,37.701207&bounded=1&limit=1`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data && data.length > 0) {
+                        const { lat, lon } = data[0];
+                        map.setView([lat, lon], 16);
+
+                        // Clear previous search marker if any (User must click to place new one)
+                        if (searchMarker) {
+                            map.removeLayer(searchMarker);
+                            searchMarker = null;
+                        }
+
+                    } else { alert("검색 결과가 없습니다."); }
+                });
+        }
+
+        // --- Chat Camera Utils ---
+        function triggerCamera() {
+            document.getElementById('chat-camera-input').click();
+        }
+
+        // --- Claim 3: Verification Simulation ---
+        function handleImageUpload(input) {
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+
+                // Show analyzing toast
+                const banner = document.getElementById('notification-banner');
+                banner.classList.remove('-translate-y-[300%]');
+                banner.onclick = null; // Disable click
+                document.getElementById('noti-title').innerText = "호환성 및 위치 검증 중...";
+                document.getElementById('noti-desc').innerHTML = " <span class='animate-pulse'>🛰️ GPS 메타데이터 분석 중...</span>";
+
+                // Simulate Analysis Delay
+                setTimeout(() => {
+                    document.getElementById('noti-desc').innerHTML = " <span class='text-green-600 font-bold'>✅ 위치 정보 일치 (오차 3m)</span>";
+
+                    setTimeout(() => {
+                        document.getElementById('noti-desc').innerHTML = " <span class='text-green-600 font-bold'>✅ 촬영 시간 검증 완료</span>";
+
+                        // Final Success & Upload
+                        setTimeout(() => {
+                            banner.classList.add('-translate-y-[300%]');
+                            processImageFile(file);
+                        }, 1000);
+
+                    }, 1000);
+                }, 1500);
+            }
+        }
+
+        function processImageFile(file) {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const imgUrl = e.target.result;
+                // Append Image Message
+                const div = document.createElement('div');
+                div.className = "flex justify-end mb-2";
+                div.innerHTML = `<div class="bg-[#3182F6] text-white p-2 rounded-[18px] rounded-tr-sm max-w-[80%] shadow-sm">
+                        <img src="${imgUrl}" class="rounded-lg max-h-48 w-full object-cover">
+                    </div>`;
+                document.getElementById('chat-body').appendChild(div);
+                scrollToBottom();
+
+                // Reset input
+                document.getElementById('chat-camera-input').value = '';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function zoomToCurrent() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(p => {
+                    map.setView([p.coords.latitude, p.coords.longitude], 17);
+                });
+            }
+        }
+        function toggleOnOff() {
+            const btn = document.getElementById('onOffBtn');
+            const isOn = btn.innerText === 'OFF';
+
+            if (isOn) {
+                btn.innerText = 'ON';
+                btn.classList.add('text-[#3182F6]');
+                btn.classList.remove('text-[#8B95A1]');
+
+                // Simulation: Incoming Request
+                alert("🟢 활동을 시작합니다. 요청을 받습니다.");
+                setTimeout(() => {
+                    openIncomingChat();
+                }, 3000);
+            } else {
+                btn.innerText = 'OFF';
+                btn.classList.remove('text-[#3182F6]');
+                btn.classList.add('text-[#8B95A1]');
+            }
+        }
+
+        function openIncomingChat() {
+            const banner = document.getElementById('notification-banner');
+            banner.classList.remove('-translate-y-[300%]');
+
+            // Auto hide after 5s or click
+            setTimeout(() => {
+                banner.classList.add('-translate-y-[300%]');
+            }, 5000);
+
+            // Mock Data for "Incoming Request"
+            document.getElementById('noti-title').innerText = "새로운 질문이 도착했습니다!";
+            document.getElementById('noti-desc').innerText = "성수동 맛집 추천해주세요 (1,000 BP)";
+
+            banner.onclick = () => {
+                banner.classList.add('-translate-y-[300%]');
+
+                // Show Detail
+                document.getElementById('pin-detail-modal').classList.remove('hidden');
+                document.getElementById('pin-detail-title').innerText = "성수동 맛집 추천해주세요";
+                document.getElementById('pin-detail-requester').innerText = "New_User_99";
+                document.getElementById('pin-detail-buttons').innerHTML = `
+                     <button onclick="acceptMission(99999, 'New_User_99')" class="w-full bg-[#3182F6] text-white py-4 rounded-[16px] font-bold shadow-lg text-[16px] btn-active">채팅으로 답변하기 (+1,000)</button>
+                 `;
+            };
+        }
+
+        // --- Splash Screen Logic ---
+        function hideSplash() {
+            const splash = document.getElementById('splash-screen');
+            if (splash && !splash.classList.contains('hidden')) {
+                splash.classList.add('opacity-0');
+                splash.classList.add('pointer-events-none');
+                setTimeout(() => {
+                    splash.classList.add('hidden');
+                    splash.style.display = 'none'; // Force hide
+                }, 700);
+            }
+        }
+
+        window.addEventListener('load', () => {
+            setTimeout(hideSplash, 1500);
+        });
+
+        // Failsafe
+        setTimeout(hideSplash, 4000);
+    </script>
+</body>
+
+</html>

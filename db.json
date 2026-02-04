@@ -1,0 +1,1204 @@
+{
+  "walletBalance": 3200,
+  "feed": [
+    {
+      "type": "USER",
+      "title": "강남역",
+      "cost": "100 BP",
+      "location": "지도 지정 위치",
+      "desc": "원격 상황 확인 요청",
+      "timestamp": 1768466505773,
+      "id": 1768466505773
+    },
+    {
+      "type": "USER",
+      "title": "성수동",
+      "cost": "100 BP",
+      "location": "지도 지정 위치",
+      "desc": "원격 상황 확인 요청",
+      "timestamp": 1768466152766,
+      "id": 1768466152766
+    },
+    {
+      "title": "⚡ 1:1 요청 (Runner_01)",
+      "desc": "진호야~",
+      "cost": "3,000원",
+      "badge": "1:1 미션",
+      "color": "purple",
+      "location": "내 위치 (방금 전)",
+      "isEvent": false,
+      "id": "1768442149654",
+      "timestamp": 1768442149654
+    },
+    {
+      "title": "⚡ 1:1 요청 (Runner_01)",
+      "desc": "ㅁㅁ",
+      "cost": "3,000원",
+      "badge": "1:1 미션",
+      "color": "purple",
+      "location": "내 위치 (방금 전)",
+      "isEvent": false,
+      "id": "1768442087176",
+      "timestamp": 1768442087176
+    },
+    {
+      "title": "📢 전체 요청 (성수동_다람쥐)",
+      "desc": "안녕하세욥",
+      "cost": "100원",
+      "badge": "전체 미션",
+      "color": "blue",
+      "location": "내 위치 (방금 전)",
+      "isEvent": false,
+      "id": "1768441197827",
+      "timestamp": 1768441197827
+    },
+    {
+      "title": "📢 전체 요청 (성수동_다람쥐)",
+      "desc": "ㅁㅁ",
+      "cost": "100원",
+      "badge": "전체 미션",
+      "color": "blue",
+      "location": "내 위치 (방금 전)",
+      "isEvent": false,
+      "id": "1768441175096",
+      "timestamp": 1768441175096
+    },
+    {
+      "title": "📢 전체 요청 (성수동_다람쥐)",
+      "desc": "몇팀",
+      "cost": "100원",
+      "badge": "전체 미션",
+      "color": "blue",
+      "location": "내 위치 (방금 전)",
+      "isEvent": false,
+      "id": "1768441126147",
+      "timestamp": 1768441126147
+    },
+    {
+      "title": "⚡ 1:1 요청 (Runner_03)",
+      "desc": "슈프림 지금 줄 어느정도인가요? 사진찍어보내주실수 있으세요?",
+      "cost": "3,000원",
+      "badge": "1:1 미션",
+      "color": "purple",
+      "location": "내 위치 (방금 전)",
+      "isEvent": false,
+      "id": "1768441033121",
+      "timestamp": 1768441033121
+    },
+    {
+      "title": "⚡ 1:1 요청 (Runner_02)",
+      "desc": "ㅁㅁ",
+      "cost": "3,000원",
+      "badge": "1:1 미션",
+      "color": "purple",
+      "location": "내 위치 (방금 전)",
+      "isEvent": false,
+      "id": "1768383113033",
+      "timestamp": 1768383113033
+    },
+    {
+      "title": "📢 전체 요청 (성수동_다람쥐)",
+      "desc": "얼마나",
+      "cost": "100원",
+      "badge": "전체 미션",
+      "color": "blue",
+      "location": "내 위치 (방금 전)",
+      "isEvent": false,
+      "id": "1768382474190",
+      "timestamp": 1768382474190
+    },
+    {
+      "title": "📢 전체 요청 (성수동_다람쥐)",
+      "desc": "ㄹㄹ",
+      "cost": "100원",
+      "badge": "전체 미션",
+      "color": "blue",
+      "location": "내 위치 (방금 전)",
+      "isEvent": false,
+      "id": "1768382455049",
+      "timestamp": 1768382455049
+    },
+    {
+      "title": "📢 전체 요청 (성수동_다람쥐)",
+      "desc": "ㅁㅁㅁㅁ",
+      "cost": "100원",
+      "badge": "전체 미션",
+      "color": "blue",
+      "location": "내 위치 (방금 전)",
+      "isEvent": false,
+      "id": "1768382350713",
+      "timestamp": 1768382350713
+    },
+    {
+      "title": "⚡ 1:1 요청 (Runner_03)",
+      "desc": "ㅁㅁ",
+      "cost": "3,000원",
+      "badge": "1:1 미션",
+      "color": "purple",
+      "location": "내 위치 (방금 전)",
+      "isEvent": false,
+      "id": "1768382216591",
+      "timestamp": 1768382216591
+    },
+    {
+      "title": "⚡ 1:1 요청 (Runner_01)",
+      "desc": "ㅁㅁ",
+      "cost": "3,000원",
+      "badge": "1:1 미션",
+      "color": "purple",
+      "location": "내 위치 (방금 전)",
+      "isEvent": false,
+      "id": "1768382099424",
+      "timestamp": 1768382099424
+    },
+    {
+      "title": "⚡ 1:1 요청 (Runner_02)",
+      "desc": "ㅌㅌ",
+      "cost": "3,000원",
+      "badge": "1:1 미션",
+      "color": "purple",
+      "location": "내 위치 (방금 전)",
+      "isEvent": false,
+      "id": "1768381988465",
+      "timestamp": 1768381988465
+    },
+    {
+      "title": "⚡ 1:1 요청 (Runner_02)",
+      "desc": "ㅁㅁ",
+      "cost": "3,000원",
+      "badge": "1:1 미션",
+      "color": "purple",
+      "location": "내 위치 (방금 전)",
+      "isEvent": false,
+      "id": "1768381960672",
+      "timestamp": 1768381960672
+    },
+    {
+      "title": "⚡ 1:1 요청 (Runner_01)",
+      "desc": "줄 대기. 얼마나?",
+      "cost": "3,000원",
+      "badge": "1:1 미션",
+      "color": "purple",
+      "location": "내 위치 (방금 전)",
+      "isEvent": false,
+      "id": "1768381899442",
+      "timestamp": 1768381899442
+    },
+    {
+      "title": "⚡ 1:1 요청 (Runner_03)",
+      "desc": "줄대기",
+      "cost": "3,000원",
+      "badge": "1:1 미션",
+      "color": "purple",
+      "location": "내 위치 (방금 전)",
+      "isEvent": false,
+      "id": "1768381873763",
+      "timestamp": 1768381873763
+    },
+    {
+      "title": "⚡ 1:1 요청 (Runner_03)",
+      "desc": "몇팀?",
+      "cost": "3,000원",
+      "badge": "1:1 미션",
+      "color": "purple",
+      "location": "내 위치 (방금 전)",
+      "isEvent": false,
+      "id": "1768375888496",
+      "timestamp": 1768375888496
+    },
+    {
+      "title": "⚡ 1:1 요청 (Runner_02)",
+      "desc": "대기줄",
+      "cost": "3,000원",
+      "badge": "1:1 미션",
+      "color": "purple",
+      "location": "내 위치 (방금 전)",
+      "isEvent": false,
+      "id": "1768373662122",
+      "timestamp": 1768373662122
+    },
+    {
+      "title": "⚡ 1:1 요청 (Runner_02)",
+      "desc": "몇팀",
+      "cost": "3,000원",
+      "badge": "1:1 미션",
+      "color": "purple",
+      "location": "내 위치 (방금 전)",
+      "isEvent": false,
+      "id": "1768372557677",
+      "timestamp": 1768372557677
+    },
+    {
+      "title": "⚡ 1:1 요청 (Runner_01)",
+      "desc": "몇팀",
+      "cost": "3,000원",
+      "badge": "1:1 미션",
+      "color": "purple",
+      "location": "내 위치 (방금 전)",
+      "isEvent": false,
+      "id": "1768372525684",
+      "timestamp": 1768372525684
+    },
+    {
+      "title": "⚡ 1:1 요청 (Runner_03)",
+      "desc": "줄이몇티",
+      "cost": "3,000원",
+      "badge": "1:1 미션",
+      "color": "purple",
+      "location": "내 위치 (방금 전)",
+      "isEvent": false,
+      "id": "1768372221861",
+      "timestamp": 1768372221861
+    },
+    {
+      "title": "⚡ 1:1 요청 (Runner_03)",
+      "desc": "줄이 몇팀",
+      "cost": "3,000원",
+      "badge": "1:1 미션",
+      "color": "purple",
+      "location": "내 위치 (방금 전)",
+      "isEvent": false,
+      "id": "1768372174218",
+      "timestamp": 1768372174218
+    },
+    {
+      "title": "⚡ 1:1 요청 (Runner_03)",
+      "desc": "줄이 몇팀",
+      "cost": "3,000원",
+      "badge": "1:1 미션",
+      "color": "purple",
+      "location": "내 위치 (방금 전)",
+      "isEvent": false,
+      "id": "1768372156824",
+      "timestamp": 1768372156824
+    },
+    {
+      "title": "⚡ 1:1 요청 (Runner_03)",
+      "desc": "줄이 몇팀",
+      "cost": "3,000원",
+      "badge": "1:1 미션",
+      "color": "purple",
+      "location": "내 위치 (방금 전)",
+      "isEvent": false,
+      "id": "1768372119134",
+      "timestamp": 1768372119134
+    },
+    {
+      "title": "⚡ 1:1 요청 (Runner_03)",
+      "desc": "지금 얼마나 줄이 수있나요?",
+      "cost": "3,000원",
+      "badge": "1:1 미션",
+      "color": "purple",
+      "location": "내 위치 (방금 전)",
+      "isEvent": false,
+      "id": "1768372006964",
+      "timestamp": 1768372006964
+    },
+    {
+      "id": "sample_1",
+      "title": "런던 베이글 뮤지엄 웨이팅 줄 사진 찍어주실 분?",
+      "desc": "현재 대기 인원이 얼마나 되는지 궁금합니다.",
+      "cost": "3,000원",
+      "badge": "줄서기",
+      "color": "blue",
+      "location": "1.2km 이내",
+      "isEvent": false
+    },
+    {
+      "id": "sample_2",
+      "title": "성수 연무장길 지금 사람 많은가요?",
+      "desc": "지금 가려고 하는데 너무 붐비면 피하려고요.",
+      "cost": "100원",
+      "badge": "인구밀집도",
+      "color": "purple",
+      "location": "500m 이내",
+      "isEvent": false
+    },
+    {
+      "id": "sample_3",
+      "title": "[사장님 이벤트] 지금 카페 OO 방문 시 아메리카노 1+1",
+      "desc": "블루핀 보고 왔다고 말씀해주시면 즉시 적용!",
+      "cost": "쿠폰지급",
+      "badge": "사장님 이벤트",
+      "color": "yellow",
+      "location": "성수동 2가",
+      "isEvent": true
+    }
+  ],
+  "escrow": [
+    {
+      "id": 1768465511451,
+      "amount": 100,
+      "status": "HELD",
+      "timestamp": 1768465511424
+    },
+    {
+      "id": 1768465520901,
+      "amount": 100,
+      "status": "HELD",
+      "timestamp": 1768465520860
+    },
+    {
+      "id": 1768465586137,
+      "amount": 100,
+      "status": "HELD",
+      "timestamp": 1768465586090
+    },
+    {
+      "id": 1768465908408,
+      "amount": 100,
+      "status": "HELD",
+      "timestamp": 1768465908470
+    },
+    {
+      "id": 1768465914975,
+      "amount": 100,
+      "status": "HELD",
+      "timestamp": 1768465914960
+    },
+    {
+      "id": 1768466048798,
+      "amount": 0,
+      "status": "HELD",
+      "timestamp": 1768466048780
+    },
+    {
+      "id": 1768466064511,
+      "amount": 0,
+      "status": "HELD",
+      "timestamp": 1768466064495
+    },
+    {
+      "id": 1768466156287,
+      "amount": 100,
+      "status": "HELD",
+      "timestamp": 1768466156269
+    },
+    {
+      "id": 1768466403981,
+      "amount": 100,
+      "status": "HELD",
+      "timestamp": 1768466403986
+    },
+    {
+      "id": 1768466509251,
+      "amount": 100,
+      "status": "HELD",
+      "timestamp": 1768466509246
+    },
+    {
+      "id": 1768533182974,
+      "amount": 100,
+      "status": "HELD",
+      "timestamp": 1768533182950
+    },
+    {
+      "id": 1768533224847,
+      "amount": 100,
+      "status": "HELD",
+      "timestamp": 1768533224824
+    },
+    {
+      "id": 1768533274273,
+      "amount": 100,
+      "status": "HELD",
+      "timestamp": 1768533274245
+    },
+    {
+      "id": 1768533303030,
+      "amount": 100,
+      "status": "HELD",
+      "timestamp": 1768533303000
+    },
+    {
+      "id": 1768533364321,
+      "amount": 100,
+      "status": "HELD",
+      "timestamp": 1768533364255
+    },
+    {
+      "id": 1768534065020,
+      "amount": 100,
+      "status": "RELEASED",
+      "timestamp": 1768534064935
+    },
+    {
+      "id": 1768534368834,
+      "amount": 100,
+      "status": "RELEASED",
+      "timestamp": 1768534368716
+    },
+    {
+      "id": 1768534402739,
+      "amount": 100,
+      "status": "HELD",
+      "timestamp": 1768534402606
+    },
+    {
+      "id": 1768535198579,
+      "amount": 100,
+      "status": "HELD",
+      "timestamp": 1768535198500
+    },
+    {
+      "id": 1768535446858,
+      "amount": 1000,
+      "status": "HELD",
+      "timestamp": 1768535447075
+    },
+    {
+      "id": 1768535556033,
+      "amount": 3000,
+      "status": "HELD",
+      "timestamp": 1768535556073
+    },
+    {
+      "id": 1768535574668,
+      "amount": 3000,
+      "status": "HELD",
+      "timestamp": 1768535574879
+    },
+    {
+      "id": 1768535603124,
+      "amount": 3000,
+      "status": "HELD",
+      "timestamp": 1768535603179
+    },
+    {
+      "id": 1768535624245,
+      "amount": 3000,
+      "status": "RELEASED",
+      "timestamp": 1768535624273
+    },
+    {
+      "id": 1768535708208,
+      "amount": 3000,
+      "status": "HELD",
+      "timestamp": 1768535708257
+    },
+    {
+      "id": 1768535785989,
+      "amount": 1000,
+      "status": "HELD",
+      "timestamp": 1768535786136
+    },
+    {
+      "id": 1768535841515,
+      "amount": 5000,
+      "status": "HELD",
+      "timestamp": 1768535841744
+    },
+    {
+      "id": 1768537230681,
+      "amount": 5000,
+      "status": "HELD",
+      "timestamp": 1768537231014
+    },
+    {
+      "id": 1768537239884,
+      "amount": 3000,
+      "status": "HELD",
+      "timestamp": 1768537239983
+    },
+    {
+      "id": 1768537403811,
+      "amount": 0,
+      "status": "HELD",
+      "timestamp": 1768537403862
+    },
+    {
+      "id": 1768550154517,
+      "amount": 3000,
+      "status": "HELD",
+      "timestamp": 1768550154697
+    },
+    {
+      "id": 1768553211159,
+      "amount": 3000,
+      "status": "HELD",
+      "timestamp": 1768553211208
+    },
+    {
+      "id": 1768553317227,
+      "amount": 3000,
+      "status": "HELD",
+      "timestamp": 1768553317315
+    },
+    {
+      "id": 1768553337647,
+      "amount": 3000,
+      "status": "HELD",
+      "timestamp": 1768553337704
+    },
+    {
+      "id": 1768553396891,
+      "amount": 1000,
+      "status": "HELD",
+      "timestamp": 1768553396993
+    },
+    {
+      "id": 1768553405625,
+      "amount": 1000,
+      "status": "HELD",
+      "timestamp": 1768553405775
+    },
+    {
+      "id": 1768553487459,
+      "amount": 3000,
+      "status": "HELD",
+      "timestamp": 1768553487519
+    },
+    {
+      "id": 1768553614883,
+      "amount": 3000,
+      "status": "HELD",
+      "timestamp": 1768553614922
+    },
+    {
+      "id": 1768553648901,
+      "amount": 3000,
+      "status": "HELD",
+      "timestamp": 1768553648970
+    },
+    {
+      "id": 1768553675711,
+      "amount": 3000,
+      "status": "HELD",
+      "timestamp": 1768553675748
+    },
+    {
+      "id": 1768553699075,
+      "amount": 3000,
+      "status": "HELD",
+      "timestamp": 1768553699169
+    },
+    {
+      "id": 1768553833250,
+      "amount": 3000,
+      "status": "HELD",
+      "timestamp": 1768553833332
+    },
+    {
+      "id": 1768553927397,
+      "amount": 3000,
+      "status": "HELD",
+      "timestamp": 1768553927454
+    },
+    {
+      "id": 1768553955689,
+      "amount": 3000,
+      "status": "HELD",
+      "timestamp": 1768553955795
+    },
+    {
+      "id": 1768553984733,
+      "amount": 3000,
+      "status": "HELD",
+      "timestamp": 1768553984844
+    },
+    {
+      "id": 1768553999390,
+      "amount": 3000,
+      "status": "HELD",
+      "timestamp": 1768553999534
+    },
+    {
+      "id": 1768554023701,
+      "amount": 3000,
+      "status": "HELD",
+      "timestamp": 1768554023748
+    },
+    {
+      "id": 1768554071253,
+      "amount": 3000,
+      "status": "HELD",
+      "timestamp": 1768554071422
+    },
+    {
+      "id": 1768554088231,
+      "amount": 3000,
+      "status": "HELD",
+      "timestamp": 1768554088281
+    },
+    {
+      "id": 1768554114337,
+      "amount": 3000,
+      "status": "HELD",
+      "timestamp": 1768554114395
+    },
+    {
+      "id": 1768554129314,
+      "amount": 3000,
+      "status": "HELD",
+      "timestamp": 1768554129378
+    },
+    {
+      "id": 1768554141327,
+      "amount": 3000,
+      "status": "HELD",
+      "timestamp": 1768554141437
+    }
+  ],
+  "pins": [
+    {
+      "id": 1769582788714,
+      "title": "줄",
+      "content": "",
+      "latitude": 37.49723542051413,
+      "longitude": 126.99810683727266,
+      "type": "QUESTION",
+      "rewardAmount": 1000,
+      "createdAt": "2026-01-28T06:46:28.714Z",
+      "expiresAt": "2026-01-28T07:46:28.714Z",
+      "status": "OPEN",
+      "creator": {
+        "name": "Anonymous",
+        "tier": "BRONZE"
+      }
+    },
+    {
+      "id": 1769582578554,
+      "title": "줄",
+      "content": "",
+      "latitude": 37.496374277491405,
+      "longitude": 126.99895799160005,
+      "type": "QUESTION",
+      "rewardAmount": 1000,
+      "createdAt": "2026-01-28T06:42:58.554Z",
+      "expiresAt": "2026-01-28T07:42:58.554Z",
+      "status": "OPEN",
+      "creator": {
+        "name": "Anonymous",
+        "tier": "BRONZE"
+      }
+    },
+    {
+      "id": 1769582571975,
+      "title": "줄",
+      "content": "",
+      "latitude": 37.496374277491405,
+      "longitude": 126.99895799160005,
+      "type": "QUESTION",
+      "rewardAmount": 1000,
+      "createdAt": "2026-01-28T06:42:51.975Z",
+      "expiresAt": "2026-01-28T07:42:51.975Z",
+      "status": "OPEN",
+      "creator": {
+        "name": "Anonymous",
+        "tier": "BRONZE"
+      }
+    },
+    {
+      "id": 1769580755431,
+      "title": "Test Question",
+      "content": "",
+      "latitude": 37.49455070072621,
+      "longitude": 126.99673842870729,
+      "type": "QUESTION",
+      "rewardAmount": 1000,
+      "createdAt": "2026-01-28T06:12:35.431Z",
+      "expiresAt": "2026-01-28T07:12:35.431Z",
+      "status": "OPEN",
+      "creator": {
+        "name": "Anonymous",
+        "tier": "BRONZE"
+      }
+    },
+    {
+      "id": 1769580001369,
+      "title": "Test Mission JSVerify Pin",
+      "content": "",
+      "latitude": 37.494605143619424,
+      "longitude": 126.99655652046205,
+      "type": "QUESTION",
+      "rewardAmount": 1000,
+      "createdAt": "2026-01-28T06:00:01.369Z",
+      "expiresAt": "2026-01-28T07:00:01.369Z",
+      "status": "OPEN",
+      "creator": {
+        "name": "Anonymous",
+        "tier": "BRONZE"
+      }
+    },
+    {
+      "id": 1769574563004,
+      "title": "ㅇㅇ",
+      "content": "",
+      "latitude": 37.496377114881746,
+      "longitude": 126.99828565120698,
+      "type": "QUESTION",
+      "rewardAmount": 1000,
+      "createdAt": "2026-01-28T04:29:23.004Z",
+      "expiresAt": "2026-01-28T05:29:23.004Z",
+      "status": "OPEN",
+      "creator": {
+        "name": "Anonymous",
+        "tier": "BRONZE"
+      }
+    },
+    {
+      "id": 1769572456548,
+      "title": "즐",
+      "content": "",
+      "latitude": 37.49343184567709,
+      "longitude": 126.99368655681612,
+      "type": "QUESTION",
+      "rewardAmount": 1000,
+      "createdAt": "2026-01-28T03:54:16.548Z",
+      "expiresAt": "2026-01-28T04:54:16.548Z",
+      "status": "OPEN",
+      "creator": {
+        "name": "Anonymous",
+        "tier": "BRONZE"
+      }
+    },
+    {
+      "id": 1769571586648,
+      "title": "줄",
+      "content": "",
+      "latitude": 37.49512794335616,
+      "longitude": 126.9981537759304,
+      "type": "QUESTION",
+      "rewardAmount": 1000,
+      "createdAt": "2026-01-28T03:39:46.648Z",
+      "expiresAt": "2026-01-28T04:39:46.648Z",
+      "status": "OPEN",
+      "creator": {
+        "name": "Anonymous",
+        "tier": "BRONZE"
+      }
+    },
+    {
+      "id": 1769571261938,
+      "title": "둘",
+      "content": "",
+      "latitude": 37.494643449287466,
+      "longitude": 126.99884712696077,
+      "type": "QUESTION",
+      "rewardAmount": 1000,
+      "createdAt": "2026-01-28T03:34:21.938Z",
+      "expiresAt": "2026-01-28T04:34:21.938Z",
+      "status": "OPEN",
+      "creator": {
+        "name": "Anonymous",
+        "tier": "BRONZE"
+      }
+    },
+    {
+      "id": 1769330254136,
+      "title": "줄",
+      "content": "",
+      "latitude": 37.49562236524884,
+      "longitude": 126.99676573276521,
+      "type": "QUESTION",
+      "rewardAmount": 1000,
+      "createdAt": "2026-01-25T08:37:34.136Z",
+      "expiresAt": "2026-01-25T09:37:34.136Z",
+      "status": "OPEN",
+      "creator": {
+        "name": "Anonymous",
+        "tier": "BRONZE"
+      }
+    },
+    {
+      "id": 1769328676550,
+      "title": "줄",
+      "content": "",
+      "latitude": 37.54579092978127,
+      "longitude": 127.05678820610048,
+      "type": "QUESTION",
+      "rewardAmount": 1000,
+      "createdAt": "2026-01-25T08:11:16.550Z",
+      "expiresAt": "2026-01-25T09:11:16.550Z",
+      "status": "OPEN",
+      "creator": {
+        "name": "Anonymous",
+        "tier": "BRONZE"
+      }
+    },
+    {
+      "id": 1769327586390,
+      "title": "줄",
+      "content": "",
+      "latitude": 37.49680839696153,
+      "longitude": 126.9949096441269,
+      "type": "QUESTION",
+      "rewardAmount": 1000,
+      "createdAt": "2026-01-25T07:53:06.390Z",
+      "expiresAt": "2026-01-25T08:53:06.390Z",
+      "status": "OPEN",
+      "creator": {
+        "name": "Anonymous",
+        "tier": "BRONZE"
+      }
+    },
+    {
+      "id": 1768792405629,
+      "title": "타임세일",
+      "content": "세일",
+      "latitude": 37.494622168363215,
+      "longitude": 126.99659407138826,
+      "type": "LIVE",
+      "rewardAmount": 0,
+      "createdAt": "2026-01-19T03:13:25.629Z",
+      "expiresAt": "2026-01-19T03:43:25.629Z",
+      "status": "OPEN",
+      "creator": {
+        "name": "Anonymous",
+        "tier": "BRONZE"
+      }
+    },
+    {
+      "id": 1768743914891,
+      "title": "줄",
+      "content": "",
+      "latitude": 37.495270524467394,
+      "longitude": 126.99487566947937,
+      "type": "QUESTION",
+      "rewardAmount": 100,
+      "createdAt": "2026-01-18T13:45:14.891Z",
+      "expiresAt": "2026-01-18T14:45:14.891Z",
+      "status": "OPEN",
+      "creator": {
+        "name": "Anonymous",
+        "tier": "BRONZE"
+      }
+    },
+    {
+      "id": 1768743880464,
+      "title": "줄",
+      "content": "",
+      "latitude": 37.49510595321032,
+      "longitude": 126.99546933174138,
+      "type": "QUESTION",
+      "rewardAmount": 100,
+      "createdAt": "2026-01-18T13:44:40.464Z",
+      "expiresAt": "2026-01-18T14:44:40.464Z",
+      "status": "OPEN",
+      "creator": {
+        "name": "Anonymous",
+        "tier": "BRONZE"
+      }
+    },
+    {
+      "id": 1768720457799,
+      "title": "타임세일",
+      "content": "새일",
+      "latitude": 37.494620280112215,
+      "longitude": 126.99659307707425,
+      "type": "LIVE",
+      "rewardAmount": 0,
+      "createdAt": "2026-01-18T07:14:17.799Z",
+      "expiresAt": "2026-01-18T07:44:17.799Z",
+      "status": "OPEN",
+      "creator": {
+        "name": "Anonymous",
+        "tier": "BRONZE"
+      }
+    },
+    {
+      "id": 1768720456673,
+      "title": "타임세일",
+      "content": "새일",
+      "latitude": 37.494620280112215,
+      "longitude": 126.99659307707425,
+      "type": "LIVE",
+      "rewardAmount": 0,
+      "createdAt": "2026-01-18T07:14:16.673Z",
+      "expiresAt": "2026-01-18T07:44:16.673Z",
+      "status": "OPEN",
+      "creator": {
+        "name": "Anonymous",
+        "tier": "BRONZE"
+      }
+    },
+    {
+      "id": 1768717181436,
+      "title": "줄",
+      "content": "",
+      "latitude": 37.494620390126094,
+      "longitude": 126.9965933931806,
+      "type": "QUESTION",
+      "rewardAmount": 100,
+      "createdAt": "2026-01-18T06:19:41.436Z",
+      "expiresAt": "2026-01-18T07:19:41.436Z",
+      "status": "OPEN",
+      "creator": {
+        "name": "Anonymous",
+        "tier": "BRONZE"
+      }
+    },
+    {
+      "id": 1768717180768,
+      "title": "줄",
+      "content": "",
+      "latitude": 37.494620390126094,
+      "longitude": 126.9965933931806,
+      "type": "QUESTION",
+      "rewardAmount": 100,
+      "createdAt": "2026-01-18T06:19:40.768Z",
+      "expiresAt": "2026-01-18T07:19:40.768Z",
+      "status": "OPEN",
+      "creator": {
+        "name": "Anonymous",
+        "tier": "BRONZE"
+      }
+    },
+    {
+      "id": 1768706017131,
+      "title": "타임세일",
+      "content": "타임새일",
+      "latitude": 37.49461832674177,
+      "longitude": 126.99659286523568,
+      "type": "LIVE",
+      "rewardAmount": 0,
+      "createdAt": "2026-01-18T03:13:37.131Z",
+      "expiresAt": "2026-01-18T03:43:37.131Z",
+      "status": "OPEN",
+      "creator": {
+        "name": "Anonymous",
+        "tier": "BRONZE"
+      }
+    },
+    {
+      "id": 1768705994012,
+      "title": "타임세일",
+      "content": "타임새일",
+      "latitude": 37.49461832674177,
+      "longitude": 126.99659286523568,
+      "type": "LIVE",
+      "rewardAmount": 0,
+      "createdAt": "2026-01-18T03:13:14.012Z",
+      "expiresAt": "2026-01-18T03:43:14.012Z",
+      "status": "OPEN",
+      "creator": {
+        "name": "Anonymous",
+        "tier": "BRONZE"
+      }
+    },
+    {
+      "id": 1768705990613,
+      "title": "타임세일",
+      "content": "타임새일",
+      "latitude": 37.49461832674177,
+      "longitude": 126.99659286523568,
+      "type": "LIVE",
+      "rewardAmount": 0,
+      "createdAt": "2026-01-18T03:13:10.613Z",
+      "expiresAt": "2026-01-18T03:43:10.613Z",
+      "status": "OPEN",
+      "creator": {
+        "name": "Anonymous",
+        "tier": "BRONZE"
+      }
+    },
+    {
+      "id": 1768705988529,
+      "title": "타임세일",
+      "content": "타임새일",
+      "latitude": 37.49461832674177,
+      "longitude": 126.99659286523568,
+      "type": "LIVE",
+      "rewardAmount": 0,
+      "createdAt": "2026-01-18T03:13:08.529Z",
+      "expiresAt": "2026-01-18T03:43:08.529Z",
+      "status": "OPEN",
+      "creator": {
+        "name": "Anonymous",
+        "tier": "BRONZE"
+      }
+    },
+    {
+      "id": 1768705958362,
+      "title": "지금줄",
+      "content": "",
+      "latitude": 37.49461832674177,
+      "longitude": 126.99659286523568,
+      "type": "QUESTION",
+      "rewardAmount": 100,
+      "createdAt": "2026-01-18T03:12:38.362Z",
+      "expiresAt": "2026-01-18T04:12:38.362Z",
+      "status": "OPEN",
+      "creator": {
+        "name": "Anonymous",
+        "tier": "BRONZE"
+      }
+    },
+    {
+      "id": 1768705952117,
+      "title": "지금줄",
+      "content": "",
+      "latitude": 37.49461832674177,
+      "longitude": 126.99659286523568,
+      "type": "QUESTION",
+      "rewardAmount": 100,
+      "createdAt": "2026-01-18T03:12:32.117Z",
+      "expiresAt": "2026-01-18T04:12:32.117Z",
+      "status": "OPEN",
+      "creator": {
+        "name": "Anonymous",
+        "tier": "BRONZE"
+      }
+    },
+    {
+      "id": 1768705916915,
+      "title": "지금 줄",
+      "content": "",
+      "latitude": 37.49461791217763,
+      "longitude": 126.99659407138826,
+      "type": "QUESTION",
+      "rewardAmount": 100,
+      "createdAt": "2026-01-18T03:11:56.915Z",
+      "expiresAt": "2026-01-18T04:11:56.915Z",
+      "status": "OPEN",
+      "creator": {
+        "name": "Anonymous",
+        "tier": "BRONZE"
+      }
+    },
+    {
+      "id": 1768705916913,
+      "title": "지금 줄",
+      "content": "",
+      "latitude": 37.49461791217763,
+      "longitude": 126.99659407138826,
+      "type": "QUESTION",
+      "rewardAmount": 100,
+      "createdAt": "2026-01-18T03:11:56.913Z",
+      "expiresAt": "2026-01-18T04:11:56.913Z",
+      "status": "OPEN",
+      "creator": {
+        "name": "Anonymous",
+        "tier": "BRONZE"
+      }
+    },
+    {
+      "id": 1768705916889,
+      "title": "지금 줄",
+      "content": "",
+      "latitude": 37.49461791217763,
+      "longitude": 126.99659407138826,
+      "type": "QUESTION",
+      "rewardAmount": 100,
+      "createdAt": "2026-01-18T03:11:56.889Z",
+      "expiresAt": "2026-01-18T04:11:56.889Z",
+      "status": "OPEN",
+      "creator": {
+        "name": "Anonymous",
+        "tier": "BRONZE"
+      }
+    },
+    {
+      "id": 1768705916119,
+      "title": "지금 줄",
+      "content": "",
+      "latitude": 37.49461791217763,
+      "longitude": 126.99659407138826,
+      "type": "QUESTION",
+      "rewardAmount": 100,
+      "createdAt": "2026-01-18T03:11:56.119Z",
+      "expiresAt": "2026-01-18T04:11:56.119Z",
+      "status": "OPEN",
+      "creator": {
+        "name": "Anonymous",
+        "tier": "BRONZE"
+      }
+    },
+    {
+      "id": 1768705915348,
+      "title": "지금 줄",
+      "content": "",
+      "latitude": 37.49461791217763,
+      "longitude": 126.99659407138826,
+      "type": "QUESTION",
+      "rewardAmount": 100,
+      "createdAt": "2026-01-18T03:11:55.348Z",
+      "expiresAt": "2026-01-18T04:11:55.348Z",
+      "status": "OPEN",
+      "creator": {
+        "name": "Anonymous",
+        "tier": "BRONZE"
+      }
+    },
+    {
+      "id": 1768705915346,
+      "title": "지금 줄",
+      "content": "",
+      "latitude": 37.49461791217763,
+      "longitude": 126.99659407138826,
+      "type": "QUESTION",
+      "rewardAmount": 100,
+      "createdAt": "2026-01-18T03:11:55.346Z",
+      "expiresAt": "2026-01-18T04:11:55.346Z",
+      "status": "OPEN",
+      "creator": {
+        "name": "Anonymous",
+        "tier": "BRONZE"
+      }
+    },
+    {
+      "id": 1768570460557,
+      "title": "",
+      "content": "",
+      "latitude": 37.54505794637957,
+      "longitude": 127.05668628215791,
+      "type": "LIVE",
+      "rewardAmount": 0,
+      "createdAt": "2026-01-16T13:34:20.557Z",
+      "expiresAt": "2026-01-16T14:04:20.557Z",
+      "status": "OPEN",
+      "creator": {
+        "name": "Anonymous",
+        "tier": "BRONZE"
+      }
+    }
+  ],
+  "runnerBalance": 14400,
+  "users": {
+    "kate": {
+      "balance": 1000,
+      "role": "USER",
+      "phone": "",
+      "history": []
+    },
+    "구": {
+      "balance": 0,
+      "role": "USER",
+      "phone": "",
+      "history": [
+        {
+          "title": "질문 등록",
+          "amount": -1000,
+          "type": "SPEND",
+          "date": 1770112523219
+        }
+      ]
+    },
+    "ㅂㅂ": {
+      "balance": 0,
+      "role": "USER",
+      "phone": "",
+      "history": [
+        {
+          "title": "질문 등록",
+          "amount": -1000,
+          "type": "SPEND",
+          "date": 1770119049977
+        }
+      ]
+    },
+    "로": {
+      "balance": 0,
+      "role": "USER",
+      "phone": "",
+      "history": [
+        {
+          "title": "질문 등록",
+          "amount": -1000,
+          "type": "SPEND",
+          "date": 1770178459199
+        }
+      ]
+    }
+  }
+}
