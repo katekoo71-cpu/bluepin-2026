@@ -9,7 +9,7 @@
     <!-- [DEBUG] Error Protections Active -->
     <script>
         window.onerror = function (msg, url, line) {
-            console.error("⚠️ Global Error:", msg, line);
+            alert("⚠️ Error: " + msg + "\nLine: " + line);
             return false;
         };
         if ('serviceWorker' in navigator) {
@@ -897,8 +897,8 @@
         }
 
         function startDirectChat(runnerName) {
-            if (!confirm(\`\${runnerName}님에게 직접 질문하시겠습니까?\`)) return;
-            
+            if (!confirm(`${runnerName}님에게 직접 질문하시겠습니까?`)) return;
+
             // Start Direct Chat
             currentChatContext = {
                 missionId: 'DIRECT_' + Date.now(),
@@ -940,12 +940,12 @@
             }
 
             const iconHtml = `
-                < div class= "relative w-10 h-10" >
+                <div class="relative w-10 h-10">
                     <div class="absolute inset-0 rounded-full opacity-30 ${isMine ? 'animate-pulse' : ''} ${isLive ? 'bg-yellow-500' : 'bg-[#3182F6]'}"></div>
                     <div class="${colorBg} relative w-full h-full rounded-full border-[3px] ${isLive ? 'border-yellow-200' : 'border-white'} shadow-lg flex items-center justify-center ${colorText} font-bold text-lg">
                         ${iconChar}
                     </div>
-                </div > `;
+                </div>`;
 
             const icon = L.divIcon({ html: iconHtml, className: 'bg-transparent', iconSize: [40, 40], iconAnchor: [20, 20] });
             const marker = L.marker([pin.latitude, pin.longitude], { icon });
@@ -991,7 +991,7 @@
 
             // [Fix 1] Fetch real balance from server
             try {
-                const res = await fetch(`/ api / state / ${ me }`);
+                const res = await fetch(`/ api / state / ${me}`);
                 const data = await res.json();
                 if (data.walletBalance !== undefined) {
                     const el = document.getElementById('disp-wallet-balance');
@@ -1130,7 +1130,7 @@
             <button onclick="deletePin(${pin.id})" class="w-full bg-[#E5E8EB] py-3 rounded-[16px] mt-2 font-bold text-[#8B95A1] hover:bg-red-50 hover:text-red-500 transition-colors">삭제</button>`;
             } else {
                 container.innerHTML = `< button onclick = "acceptMission(${pin.id}, '${pin.creator.name}', '${pin.title.replace(/'/g, "\\'")}')" class="w - full bg - [#3182F6] text - white py - 4 rounded - [16px] font - bold shadow - lg text - [16px] btn - active">채팅으로 답변하기 (+${pin.rewardAmount})</button>`;
-        }
+            }
         }
         }
 
