@@ -15,13 +15,19 @@
         body { margin: 0; padding: 0; font-family: 'Pretendard', sans-serif; overflow: hidden; background: #f5f5f5; }
         #map { width: 100%; height: 100vh; z-index: 1; background: #ddd; }
         
-        /* 중앙 조준점 (십자가) */
+        /* 통신 상태 표시등 (디버깅용) */
+        #status-indicator {
+            position: fixed; top: 10px; right: 10px;
+            padding: 5px 10px; border-radius: 20px; font-size: 11px; font-weight: bold;
+            z-index: 2000; background: #EF4444; color: white; /* 기본: 빨강(끊김) */
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        /* 십자가 */
         #crosshair {
             position: fixed; top: 50%; left: 50%;
-            width: 40px; height: 40px;
-            transform: translate(-50%, -50%);
-            z-index: 1000; pointer-events: none;
-            display: none;
+            width: 40px; height: 40px; transform: translate(-50%, -50%);
+            z-index: 1000; pointer-events: none; display: none;
         }
         #crosshair::before, #crosshair::after {
             content: ''; position: absolute; background: #EF4444;
@@ -30,82 +36,46 @@
         #crosshair::before { top: 18px; left: 0; width: 40px; height: 4px; }
         #crosshair::after { top: 0; left: 18px; width: 4px; height: 40px; }
 
-        /* 웰컴 팝업 */
-        #role-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8); z-index: 9999;
-            display: flex; align-items: center; justify-content: center;
-        }
-        .role-box {
-            background: white; padding: 30px; border-radius: 20px; text-align: center; width: 85%; max-width: 320px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-        }
-        .role-btn {
-            display: block; width: 100%; padding: 15px; margin: 10px 0; border: none; border-radius: 12px;
-            font-size: 18px; font-weight: bold; cursor: pointer; transition: 0.2s;
-        }
-        .btn-guest { background: #EEF2FF; color: #4F46E5; }
-        .btn-host { background: #4F46E5; color: white; }
-
-        /* 사장님 리모컨 */
-        #host-controls {
-            position: fixed; bottom: -500px; left: 0; width: 100%;
-            background: white; border-radius: 20px 20px 0 0;
-            padding: 20px; z-index: 2000; transition: bottom 0.3s ease-out;
-            box-shadow: 0 -5px 20px rgba(0,0,0,0.1); padding-bottom: 40px;
-        }
+        /* UI 스타일들 (기존 동일) */
+        #role-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999; display: flex; align-items: center; justify-content: center; }
+        .role-box { background: white; padding: 30px; border-radius: 20px; text-align: center; width: 85%; max-width: 320px; }
+        .role-btn { display: block; width: 100%; padding: 15px; margin: 10px 0; border: none; border-radius: 12px; font-size: 18px; font-weight: bold; cursor: pointer; }
+        .btn-guest { background: #EEF2FF; color: #4F46E5; } .btn-host { background: #4F46E5; color: white; }
+        
+        #host-controls { position: fixed; bottom: -500px; left: 0; width: 100%; background: white; border-radius: 20px 20px 0 0; padding: 20px; z-index: 2000; transition: bottom 0.3s; padding-bottom: 40px; }
         #host-controls.active { bottom: 0; }
-
-        /* Pro 스위치 */
-        .pro-toggle-area {
-            display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 15px; padding: 10px; background: #F3F4F6; border-radius: 10px;
-        }
-        .toggle-switch { position: relative; display: inline-block; width: 50px; height: 28px; }
-        .toggle-switch input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
-        .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
-        input:checked + .slider { background-color: #4F46E5; }
-        input:checked + .slider:before { transform: translateX(22px); }
-
-        /* 입력창 및 버튼 */
-        .promo-input {
-            width: 100%; padding: 15px; border: 2px solid #E5E7EB; border-radius: 12px;
-            font-size: 16px; margin-bottom: 15px; box-sizing: border-box;
-        }
+        
+        .promo-input { width: 100%; padding: 15px; border: 2px solid #E5E7EB; border-radius: 12px; font-size: 16px; margin-bottom: 15px; box-sizing: border-box; }
         .action-buttons { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
-        .action-btn {
-            padding: 12px 5px; border: none; border-radius: 12px;
-            font-size: 13px; font-weight: bold; color: white; cursor: pointer;
-            display: flex; flex-direction: column; align-items: center; gap: 5px;
-        }
-        .btn-red { background: #EF4444; }
-        .btn-yellow { background: #F59E0B; }
-        .btn-blue { background: #3B82F6; }
-
-        /* 줌 레벨 스타일 & 겹침 방지 */
+        .action-btn { padding: 12px 5px; border: none; border-radius: 12px; font-size: 13px; font-weight: bold; color: white; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+        .btn-red { background: #EF4444; } .btn-yellow { background: #F59E0B; } .btn-blue { background: #3B82F6; }
+        
+        /* 말풍선 스타일 */
         .leaflet-tooltip { display: none !important; border: 2px solid #333; border-radius: 8px; font-weight: bold; z-index: 1000; }
         .map-zoomed-in .leaflet-tooltip { display: block !important; }
         .label-red { border-color: #EF4444; color: #EF4444; }
         .label-yellow { border-color: #F59E0B; color: #F59E0B; }
         .label-blue { border-color: #3B82F6; color: #3B82F6; }
 
-        #open-controls-btn {
-            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
-            background: #111; color: white; padding: 12px 24px; border-radius: 50px;
-            font-weight: bold; border: none; z-index: 1500; display: none;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-        }
+        #open-controls-btn { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #111; color: white; padding: 12px 24px; border-radius: 50px; font-weight: bold; border: none; z-index: 1500; display: none; }
+        .pro-toggle-area { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding: 10px; background: #F3F4F6; border-radius: 10px; }
+        .toggle-switch { position: relative; display: inline-block; width: 50px; height: 28px; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: #4F46E5; } input:checked + .slider:before { transform: translateX(22px); }
     </style>
 </head>
 <body>
+
+    <div id="status-indicator">🔴 연결 끊김</div>
 
     <div id="crosshair"></div>
 
     <div id="role-overlay">
         <div class="role-box">
-            <h2>BluePin V6.1 📍</h2>
-            <p style="color:#666; font-size:14px; margin-bottom:20px;">겹침 방지 기능 적용됨</p>
+            <h2>BluePin V6.2 📍</h2>
+            <p style="color:#666; font-size:14px; margin-bottom:20px;">서버 연결 복구 버전</p>
             <button class="role-btn btn-guest" onclick="setRole('guest')">🙋‍♂️ 손님으로 입장</button>
             <button class="role-btn btn-host" onclick="setRole('host')">🏪 사장님 (핀 꽂기)</button>
         </div>
@@ -130,20 +100,42 @@
         </div>
     </div>
 
-    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script> 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <script>
+        // 1. 소켓 연결 및 상태 확인
         let socket;
-        let map;
-        const FORBIDDEN_WORDS = ['바보', '멍청이', '망해라', '개XX', 'ㅅㅂ', '꺼져'];
+        const statusEl = document.getElementById('status-indicator');
 
-        try { socket = io(); } catch(e) { console.log('Socket Error'); }
+        try {
+            socket = io(); // 내 서버랑 연결 시도
 
-        map = L.map('map').setView([37.5445, 127.0560], 16);
+            // 연결 성공하면 초록불 🟢
+            socket.on('connect', () => {
+                console.log("서버 연결 성공!");
+                statusEl.innerText = "🟢 실시간 연결됨";
+                statusEl.style.background = "#10B981"; // 초록색
+                
+                // (디버깅용) 연결되자마자 알림 한 번만 띄우기
+                // alert("서버와 정상적으로 연결되었습니다!"); 
+            });
+
+            // 연결 끊기면 빨간불 🔴
+            socket.on('disconnect', () => {
+                statusEl.innerText = "🔴 연결 끊김";
+                statusEl.style.background = "#EF4444";
+            });
+
+        } catch (e) {
+            console.error("소켓 로드 실패:", e);
+            statusEl.innerText = "⚠️ 오류 발생";
+        }
+
+        // 2. 지도 초기화
+        let map = L.map('map').setView([37.5445, 127.0560], 16);
         L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: 'BluePin',
-            maxZoom: 19
+            attribution: 'BluePin', maxZoom: 19
         }).addTo(map);
 
         map.on('zoomend', function() {
@@ -151,6 +143,8 @@
             else document.getElementById('map').classList.remove('map-zoomed-in');
         });
         if(map.getZoom() >= 16) document.getElementById('map').classList.add('map-zoomed-in');
+
+        const FORBIDDEN_WORDS = ['바보', '멍청이', '망해라', '개XX', 'ㅅㅂ', '꺼져'];
 
         function setRole(role) {
             document.getElementById('role-overlay').style.display = 'none';
@@ -195,30 +189,33 @@
             sendSignal(type, finalText);
         }
 
-        // ★ [핵심] 흩뿌리기(Jitter) 기능 추가
+        // 3. 신호 보내기 (흩뿌리기)
         function sendSignal(type, text) {
+            if (!socket || !socket.connected) {
+                alert("🚨 서버와 연결이 끊겨있습니다.\n잠시 후 다시 시도하거나 새로고침 해주세요.");
+                return;
+            }
+
             const center = map.getCenter();
-            
-            // 0.0001은 약 10m 정도입니다.
-            // -5m ~ +5m 사이로 랜덤하게 위치를 흔듭니다.
             const jitterLat = (Math.random() - 0.5) * 0.00015;
             const jitterLng = (Math.random() - 0.5) * 0.00015;
 
             const data = {
-                lat: center.lat + jitterLat, // 흔들린 좌표
-                lng: center.lng + jitterLng, // 흔들린 좌표
+                lat: center.lat + jitterLat,
+                lng: center.lng + jitterLng,
                 type: type,
                 message: text,
                 time: Date.now()
             };
             
-            if(socket) socket.emit('bossSignal', data);
+            socket.emit('bossSignal', data);
             
-            alert(`📢 핀 등록 완료!\n"${text}"\n(겹침 방지를 위해 살짝 옆에 찍혔습니다)`);
+            alert(`📢 핀 발사 성공!\n"${text}"`);
             document.getElementById('promo-text').value = ''; 
             toggleControls();
         }
 
+        // 4. 신호 받기
         if(socket) {
             socket.on('newSignal', (data) => {
                 if (Date.now() - data.time > 30 * 60 * 1000) return;
