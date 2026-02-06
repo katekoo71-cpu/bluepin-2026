@@ -14,33 +14,29 @@ const httpServer = createServer(app);
 const io = new Server(httpServer, {
     cors: {
         origin: "*",
-        methods: ["GET", "POST"]
+        methods: ["GET", "POST", "DELETE"]
     }
 });
 
 // Middleware
 app.use(cors());
-app.use(express.static(path.join(__dirname, '/'))); // Serve static files
+app.use(express.static(path.join(__dirname, '/'))); 
 app.use(express.json());
 
 // Database File Path
 const DB_FILE = path.join(__dirname, 'db.json');
 
-// Default Data Structure
+// [V3] Default State (돈/지갑 삭제, 심플해진 구조)
 const DEFAULT_STATE = {
-    users: {}, // { "nickname": { balance: 0, role: "USER", history: [] } }
-    pins: [],
-    escrow: [],
+    users: {}, // { "nickname": { role: "STORE" | "USER", storeName: "..." } }
+    pins: [],  // { id, type, title, expiresAt, ... }
     feed: []
 };
 
-
-// --- PERSISTENCE LOGIC START ---
-// Helper: Read State
+// --- PERSISTENCE LOGIC ---
 function readState() {
     try {
         if (!fs.existsSync(DB_FILE)) {
-            // Init with default
             fs.writeFileSync(DB_FILE, JSON.stringify(DEFAULT_STATE, null, 2));
             return JSON.parse(JSON.stringify(DEFAULT_STATE));
         }
@@ -52,10 +48,8 @@ function readState() {
     }
 }
 
-// Helper: Write State (throttled could be better, but sync for safety in this critical fix)
 function writeState(state) {
     try {
-        // [Safety 3] Write to temp file first then rename to prevent corruption
         const tempFile = DB_FILE + '.tmp';
         fs.writeFileSync(tempFile, JSON.stringify(state, null, 2));
         fs.renameSync(tempFile, DB_FILE);
@@ -64,238 +58,129 @@ function writeState(state) {
     }
 }
 
+// --- [V3 핵심] 증발 엔진 (Garbage Collection) ---
+// 1분마다 서버가 스스로 체크해서 죽은 핀을 물리적으로 삭제함
+setInterval(() => {
+    let state = readState();
+    const now = Date.now();
+    const originalCount = state.pins.length;
+
+    // 만료된 핀 걸러내기
+    state.pins = state.pins.filter(pin => new Date(pin.expiresAt).getTime() > now);
+
+    if (state.pins.length !== originalCount) {
+        console.log(`[Evaporation Engine] Cleaned up ${originalCount - state.pins.length} expired pins.`);
+        writeState(state);
+        io.emit('refreshPins'); // 클라이언트들에게 "지도 다시 그려!" 명령
+    }
+}, 60 * 1000); // 1분 주기
+
 // --- API IMPLEMENTATION ---
 
-// 1. [Fix 1] User Login/Signup & Validation
-// Returns user specific state
+// 1. [V3] Login (역할 분리)
 app.post('/api/login', (req, res) => {
-    const { nickname, role, phone } = req.body;
+    const { nickname, role, storeName } = req.body;
     let state = readState();
 
     if (!state.users) state.users = {};
 
-    // Create or Get User
-    if (!state.users[nickname]) {
-        // New User
-        state.users[nickname] = {
-            balance: (role === 'PARTNER' ? 3000 : 1000), // Bonus
-            role: role || 'USER',
-            phone: phone || '',
-            history: []
-        };
-        console.log(`[New User] ${nickname} created.`);
-    }
-
-    // Sync Balance just in case
-    const user = state.users[nickname];
+    // 유저 정보 저장 (돈은 저장 안 함)
+    state.users[nickname] = {
+        role: role || 'USER', // 'STORE' or 'USER'
+        storeName: storeName || '',
+        joinedAt: Date.now()
+    };
+    
+    console.log(`[Login] ${nickname} (${role}) entered.`);
 
     writeState(state);
-    res.json({ success: true, user: user });
+    res.json({ success: true, user: state.users[nickname] });
 });
 
-app.get('/api/state/:nickname', (req, res) => {
-    const { nickname } = req.params;
-    const state = readState();
-
-    // [Fix 1] Return only user specific data + public data
-    const user = state.users?.[nickname] || { balance: 0 };
-
-    res.json({
-        walletBalance: user.balance, // Compatibility binding
-        feed: state.feed || []
-    });
-});
-
-// 2. Get Pins (Claim 1: Evaporation Engine)
+// 2. Get Pins (만료된 핀은 안 보여줌)
 app.get('/api/pins', (req, res) => {
     let state = readState();
     const now = Date.now();
 
-    // Filter expired pins (Active TTL)
     const activePins = state.pins.filter(pin => {
-        const isNotSolved = pin.status !== 'SOLVED';
         const isNotExpired = new Date(pin.expiresAt).getTime() > now;
-        return isNotSolved && isNotExpired;
+        return isNotExpired;
     });
-
-    // (Optional) Auto-delete expired from DB could go here, but filtered view is safer for now.
 
     res.json(activePins);
 });
 
-// 3. Create Pin (Claim 5: Escrow Lock)
+// 3. [V3 핵심] Create Pin (사장님 도구)
 app.post('/api/pins', (req, res) => {
-    const { title, content, latitude, longitude, durationMinutes, type, rewardAmount, creatorName } = req.body;
-
+    // rewardAmount 삭제, durationMinutes는 기본 30분
+    const { title, content, latitude, longitude, type, creatorName } = req.body;
+    
     // Validation
     if (!title || !latitude || !longitude || !creatorName) {
         return res.status(400).json({ success: false, message: "Missing fields" });
     }
 
     let state = readState();
-    let user = state.users[creatorName];
+    const user = state.users[creatorName];
 
-    // [Fix 1] Check User
-    if (!user) {
-        return res.status(401).json({ success: false, message: "User not found" });
+    // 사장님 권한 체크 (STORE 타입인데 일반 유저가 시도하면 차단)
+    if (type === 'STORE' && (!user || user.role !== 'STORE')) {
+        return res.status(403).json({ success: false, message: "Only Store Owners can create Store Pins" });
     }
 
-    // 2. Cost Calculation
-    let cost = 0;
-    if (type === 'QUESTION') {
-        cost = 1000; // [Restored] Real cost for MVP economy
-    } else if (type === 'LIVE') {
-        cost = 0; // Free for testing (Store Sub logic placeholder)
+    // [V3] 1인 1핀 제한 (이미 살아있는 핀이 있으면 생성 불가 - 스팸 방지)
+    if (type === 'STORE') {
+        const existingPin = state.pins.find(p => p.creator.name === creatorName && new Date(p.expiresAt) > Date.now());
+        if (existingPin) {
+             return res.status(400).json({ success: false, message: "이미 진행 중인 이벤트가 있습니다. (1개 제한)" });
+        }
     }
 
-    if (user.balance < cost) {
-        return res.status(400).json({ success: false, message: "Not enough points" });
-    }
-
-    // Deduct
-    if (cost > 0) {
-        user.balance -= cost;
-        user.history.push({
-            title: type === 'LIVE' ? '라이브 등록' : '질문 등록',
-            amount: -cost,
-            type: 'SPEND',
-            date: Date.now()
-        });
-    }
-
-    // 3. Create Pin
+    // 핀 생성 (돈 차감 로직 삭제됨)
     const now = Date.now();
-    const expiresAt = new Date(now + (durationMinutes * 60000)).toISOString();
+    const DURATION_MINUTES = 30; // 무조건 30분
+    const expiresAt = new Date(now + (DURATION_MINUTES * 60000)).toISOString();
 
     const newPin = {
         id: Date.now(),
-        title,
+        title, 
         content: content || "",
         latitude,
         longitude,
-        type: type || 'QUESTION',
-        rewardAmount: rewardAmount || 0,
+        type: type || 'STORE', // 'STORE' or 'QUESTION'
         createdAt: new Date(now).toISOString(),
         expiresAt,
-        status: 'OPEN',
-        creator: { name: creatorName, tier: 'BRONZE' } // Tier logic would go here
+        creator: { name: creatorName, storeName: user?.storeName || "" }
     };
 
     state.pins.unshift(newPin);
     writeState(state);
 
-    // Broadcast
+    // [V3] 알림 발송: "성수베이킹 님이 갓 구운 빵 핀을 꽂았습니다!"
     io.emit('pinCreated', newPin);
-    // [Fix] Send specific wallet update to THIS socket is handled by client polling or response
-    // But we can emit to specific room if we mapped sockets. For now, simple emit.
 
-    res.json({
-        success: true,
+    res.json({ 
+        success: true, 
         pin: newPin,
-        balance: user.balance, // Return new balance
-        meta: { matchingTriggered: true, message: "Pin Created" }
+        message: "Pin Created (Valid for 30 mins)" 
     });
 });
 
-
-// 3. [Fix 2] Race Condition Free Payout
-app.post('/api/payout', (req, res) => {
-    const { pinId, amount, runnerName } = req.body; // Requester logic handled by Pin status
-
-    // [Safety] Lock State
-    let state = readState();
-
-    // 1. Validate Runner
-    if (!state.users[runnerName]) {
-        return res.status(400).json({ success: false, message: "Runner not found" });
-    }
-
-    // 2. [Critical] Find & Lock Pin
-    const pinIndex = state.pins.findIndex(p => p.id == pinId);
-    if (pinIndex === -1) {
-        return res.status(404).json({ success: false, message: "Pin not found (deleted?)" });
-    }
-
-    const pin = state.pins[pinIndex];
-
-    // 3. [Critical] Check Double Spending
-    if (pin.status === 'SOLVED') {
-        return res.status(400).json({ success: false, message: "Already Paid" });
-    }
-
-    // 4. Atomic Update
-    const payoutAmount = Math.floor(amount * 0.8);
-    const fee = amount - payoutAmount;
-
-    // Credit Runner
-    state.users[runnerName].balance += payoutAmount;
-    state.users[runnerName].history.push({
-        title: '미션 성공',
-        amount: payoutAmount,
-        type: 'EARN',
-        date: Date.now()
-    });
-
-    // Mark Solved
-    state.pins[pinIndex].status = 'SOLVED';
-
-    // Save
-    writeState(state);
-
-    // Notify
-    io.emit('payoutNotification', {
-        type: 'EARN',
-        amount: payoutAmount,
-        fee: fee,
-        runnerName: runnerName, // Client filters
-        title: '미션 성공 보상'
-    });
-
-    // Remove pin from map
-    io.emit('pinDeleted', pinId);
-
-    console.log(`[Payout Safe] Pin ${pinId} Solved. Runner ${runnerName} got ${payoutAmount}`);
-
-    res.json({ success: true, balance: state.users[runnerName].balance });
-});
-
-
-// API: Delete Pin (Refund logic optional, currently just delete)
+// 4. Delete Pin (사장님이 직접 내리기)
 app.delete('/api/pins/:id', (req, res) => {
     let state = readState();
     const pinId = parseInt(req.params.id);
-    const { requesterName } = req.body; // verify owner
+    const { requesterName } = req.body; 
 
-    // Find pin
     const pin = state.pins.find(p => p.id === pinId);
     if (!pin) return res.status(404).json({ success: false });
 
-    // Verify Owner (Simple check)
+    // 본인 확인
     if (pin.creator.name !== requesterName) {
-        // return res.status(403).json... skip for prototype simplicity
+         return res.status(403).json({ success: false, message: "Not your pin" });
     }
 
-    // [Critical] If already solved, cannot delete/refund
-    if (pin.status === 'SOLVED') {
-        return res.status(400).json({ success: false, message: "Cannot delete completed mission" });
-    }
-
-    // [Feature] Refund Logic
-    if (pin.status === 'OPEN' && pin.type === 'QUESTION') {
-        const refundAmount = 1000; // Or pin.cost if stored
-        if (state.users[pin.creator.name]) {
-            state.users[pin.creator.name].balance += refundAmount;
-            state.users[pin.creator.name].history.push({
-                title: '질문 취소 환불',
-                amount: refundAmount,
-                type: 'REFUND',
-                date: Date.now()
-            });
-            console.log(`[Refund] User ${pin.creator.name} refunded ${refundAmount} BP`);
-        }
-    }
-
-    // Delete
+    // 환불 로직 삭제됨 -> 그냥 삭제
     state.pins = state.pins.filter(p => p.id !== pinId);
     writeState(state);
 
@@ -307,30 +192,15 @@ app.delete('/api/pins/:id', (req, res) => {
 io.on('connection', (socket) => {
     console.log('User connected:', socket.id);
 
-    // We could implement "Login" over socket here to map socket.id -> nickname
     socket.on('join', (nickname) => {
         socket.nickname = nickname;
-        console.log(`Socket ${socket.id} joined as ${nickname}`);
-    });
-
-    socket.on('updateLocation', (data) => {
-        socket.broadcast.emit('userMoved', data);
-    });
-
-    socket.on('sendChat', (data) => {
-        socket.broadcast.emit('receiveChat', data);
-    });
-
-    socket.on('updateStatus', (data) => {
-        socket.broadcast.emit('statusChanged', data);
     });
 
     socket.on('disconnect', () => {
-        // cleanup if needed
     });
 });
 
-const PORT = 4173;
+const PORT = process.env.PORT || 4173; // Render 호환성 위해 process.env.PORT 추가
 httpServer.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on http://0.0.0.0:${PORT}`);
+    console.log(`Server running on port ${PORT}`);
 });
