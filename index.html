@@ -9,10 +9,11 @@
     <link rel="icon" type="image/png" href="/logo.png">
     <link rel="apple-touch-icon" href="/logo.png">
 
-    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
     <style>
         body { margin: 0; padding: 0; font-family: 'Pretendard', sans-serif; overflow: hidden; background: #f5f5f5; }
-        #map { width: 100%; height: 100vh; z-index: 1; }
+        #map { width: 100%; height: 100vh; z-index: 1; background: #e5e5e5; } /* 회색 배경일 때 로딩중임을 알 수 있게 */
         
         /* 1. 웰컴 팝업 */
         #role-overlay {
@@ -21,7 +22,7 @@
             display: flex; align-items: center; justify-content: center;
         }
         .role-box {
-            background: white; padding: 30px; border-radius: 20px; text-align: center; width: 80%; max-width: 320px;
+            background: white; padding: 30px; border-radius: 20px; text-align: center; width: 85%; max-width: 320px;
             box-shadow: 0 10px 25px rgba(0,0,0,0.2);
         }
         .role-btn {
@@ -33,11 +34,12 @@
 
         /* 2. 사장님 리모컨 패널 */
         #host-controls {
-            position: fixed; bottom: -400px; left: 0; width: 100%;
+            position: fixed; bottom: -450px; left: 0; width: 100%;
             background: white; border-radius: 20px 20px 0 0;
             padding: 20px; box-sizing: border-box; z-index: 2000;
             transition: bottom 0.3s ease-out;
             box-shadow: 0 -5px 20px rgba(0,0,0,0.1);
+            padding-bottom: 40px; /* 아이폰 하단 바 여백 */
         }
         #host-controls.active { bottom: 0; }
 
@@ -70,10 +72,10 @@
         }
         .promo-input:disabled { background: #F9FAFB; color: #9CA3AF; cursor: not-allowed; }
         
-        .action-buttons { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+        .action-buttons { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
         .action-btn {
-            padding: 15px 5px; border: none; border-radius: 12px;
-            font-size: 14px; font-weight: bold; color: white; cursor: pointer;
+            padding: 12px 5px; border: none; border-radius: 12px;
+            font-size: 13px; font-weight: bold; color: white; cursor: pointer;
             display: flex; flex-direction: column; align-items: center; gap: 5px;
         }
         .btn-red { background: #EF4444; }
@@ -81,14 +83,12 @@
         .btn-blue { background: #3B82F6; }
 
         /* 5. 지도 줌 레벨 정책 (CSS 마법) */
-        /* 기본적으로 툴팁(말풍선)은 숨김 */
         .leaflet-tooltip { 
             display: none !important; 
             box-shadow: 0 2px 5px rgba(0,0,0,0.2);
             border: 2px solid #333; border-radius: 8px;
             font-weight: bold; font-size: 13px;
         }
-        /* 지도가 'zoomed-in' 클래스를 가질 때만 보임 */
         .map-zoomed-in .leaflet-tooltip { display: block !important; }
 
         .label-red { border-color: #EF4444; color: #EF4444; }
@@ -100,6 +100,7 @@
             background: #111; color: white; padding: 12px 24px; border-radius: 50px;
             font-weight: bold; border: none; z-index: 1500; display: none;
             box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            cursor: pointer;
         }
     </style>
 </head>
@@ -127,7 +128,6 @@
         </div>
 
         <h3 style="margin:0 0 10px 0;">오늘의 홍보 멘트</h3>
-        
         <div class="input-group">
             <input type="text" id="promo-text" class="promo-input" placeholder="원하는 문구를 입력하세요 (Pro 전용)">
         </div>
@@ -142,46 +142,68 @@
         </p>
     </div>
 
-    <script src="/socket.io/socket.io.js"></script>
-    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <script>
-        const socket = io();
+        // 소켓 연결 (안전장치 추가)
+        let socket;
+        try {
+            socket = io();
+        } catch(e) {
+            console.error("소켓 연결 실패:", e);
+            alert("서버 연결에 실패했습니다. 잠시 후 다시 시도해주세요.");
+        }
+
         let map;
-        
-        // 🚨 1. 금칙어 DB (욕설 필터)
         const FORBIDDEN_WORDS = ['바보', '멍청이', '망해라', '개XX', 'ㅅㅂ', '꺼져'];
 
-        // 지도 초기화
-        map = L.map('map').setView([37.5445, 127.0560], 16);
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-            attribution: 'BluePin'
-        }).addTo(map);
+        // 지도 초기화 (오류 방지)
+        try {
+            map = L.map('map').setView([37.5445, 127.0560], 16);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+                attribution: 'BluePin',
+                maxZoom: 19
+            }).addTo(map);
 
-        // 🔭 2. 줌 레벨 정책 (멀어지면 글자 숨기기)
-        map.on('zoomend', function() {
-            const currentZoom = map.getZoom();
-            const mapEl = document.getElementById('map');
-            
-            // 줌 레벨 16 이상일 때만 'map-zoomed-in' 클래스 추가
-            if (currentZoom >= 16) {
-                mapEl.classList.add('map-zoomed-in');
-            } else {
-                mapEl.classList.remove('map-zoomed-in');
-            }
-        });
-        // 처음 로딩 시 체크
-        if(map.getZoom() >= 16) document.getElementById('map').classList.add('map-zoomed-in');
+            // 줌 레벨 이벤트
+            map.on('zoomend', function() {
+                const currentZoom = map.getZoom();
+                const mapEl = document.getElementById('map');
+                if (currentZoom >= 16) {
+                    mapEl.classList.add('map-zoomed-in');
+                } else {
+                    mapEl.classList.remove('map-zoomed-in');
+                }
+            });
+            // 초기 상태 체크
+            if(map.getZoom() >= 16) document.getElementById('map').classList.add('map-zoomed-in');
 
+        } catch (error) {
+            alert("지도를 불러오는데 실패했습니다. 새로고침 해주세요.");
+        }
 
+        // 역할 선택
         function setRole(role) {
             document.getElementById('role-overlay').style.display = 'none';
+            
+            // 지도 크기 재조정 (모바일 버그 방지)
+            setTimeout(() => { map.invalidateSize(); }, 100);
+
             if (role === 'host') {
                 document.getElementById('open-controls-btn').style.display = 'block';
-                navigator.geolocation.getCurrentPosition(pos => {
-                    const { latitude, longitude } = pos.coords;
-                    map.setView([latitude, longitude], 18);
-                });
+                
+                // 내 위치 찾기
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(pos => {
+                        const { latitude, longitude } = pos.coords;
+                        map.setView([latitude, longitude], 18);
+                    }, () => {
+                        alert("위치 권한을 허용해야 내 가게를 표시할 수 있습니다!");
+                    });
+                } else {
+                    alert("이 기기에서는 위치 정보를 사용할 수 없습니다.");
+                }
             }
         }
 
@@ -189,7 +211,7 @@
             document.getElementById('host-controls').classList.toggle('active');
         }
 
-        // 💸 3. 유료(Pro) vs 무료(Free) 모드 전환
+        // Pro 모드 토글
         function toggleProMode() {
             const isPro = document.getElementById('pro-switch').checked;
             const inputField = document.getElementById('promo-text');
@@ -205,31 +227,27 @@
             }
         }
 
-        // 홍보 버튼 클릭 핸들러
+        // 홍보 버튼 클릭
         function handlePromo(type, defaultText) {
             const isPro = document.getElementById('pro-switch').checked;
             const inputField = document.getElementById('promo-text');
             let finalText = "";
 
             if (isPro) {
-                // Pro: 입력한 내용 사용
                 finalText = inputField.value.trim();
                 if (!finalText) {
                     alert("Pro 사장님! 홍보할 내용을 적어주세요.");
                     inputField.focus();
                     return;
                 }
-                
-                // 🚨 욕설 필터링 체크
+                // 욕설 필터
                 for (let badWord of FORBIDDEN_WORDS) {
                     if (finalText.includes(badWord)) {
                         alert(`🚫 비속어('${badWord}')가 포함되어 등록할 수 없습니다.`);
-                        return; // 전송 중단
+                        return; 
                     }
                 }
-
             } else {
-                // Free: 기본 멘트 강제 사용
                 finalText = defaultText;
                 alert("🔒 무료 버전은 기본 문구로만 등록됩니다.\n(Pro 업그레이드 시 자유 입력 가능)");
             }
@@ -239,6 +257,8 @@
         }
 
         function sendSignal(type, text) {
+            if (!navigator.geolocation) return alert("위치 정보를 찾을 수 없습니다.");
+
             navigator.geolocation.getCurrentPosition(position => {
                 const data = {
                     lat: position.coords.latitude,
@@ -247,37 +267,42 @@
                     message: text,
                     time: Date.now()
                 };
-                socket.emit('bossSignal', data);
+                if(socket) socket.emit('bossSignal', data);
                 
                 alert(`📢 등록 완료!\n"${text}"`);
                 document.getElementById('promo-text').value = ''; 
                 toggleControls();
-            });
+            }, () => alert("위치 정보를 켜주세요!"));
         }
 
-        // 지도 표시
-        socket.on('newSignal', (data) => {
-            if (Date.now() - data.time > 30 * 60 * 1000) return;
+        // 서버 신호 수신
+        if(socket) {
+            socket.on('newSignal', (data) => {
+                if (Date.now() - data.time > 30 * 60 * 1000) return;
 
-            let colorClass = '';
-            if (data.type === 'discount') colorClass = 'label-red';
-            else if (data.type === 'fresh') colorClass = 'label-yellow';
-            else colorClass = 'label-blue';
+                let colorClass = '';
+                if (data.type === 'discount') colorClass = 'label-red';
+                else if (data.type === 'fresh') colorClass = 'label-yellow';
+                else colorClass = 'label-blue';
 
-            const marker = L.marker([data.lat, data.lng]).addTo(map);
-            
-            marker.bindTooltip(data.message, {
-                permanent: true,
-                direction: 'top',
-                className: `custom-label ${colorClass}`,
-                offset: [0, -10]
-            }).openTooltip();
+                const marker = L.marker([data.lat, data.lng]).addTo(map);
+                
+                marker.bindTooltip(data.message, {
+                    permanent: true,
+                    direction: 'top',
+                    className: `custom-label ${colorClass}`,
+                    offset: [0, -10]
+                }).openTooltip();
 
-            setInterval(() => {
-                const timeLeft = 30 * 60 * 1000 - (Date.now() - data.time);
-                if (timeLeft <= 0) map.removeLayer(marker);
-            }, 1000);
-        });
+                const interval = setInterval(() => {
+                    const timeLeft = 30 * 60 * 1000 - (Date.now() - data.time);
+                    if (timeLeft <= 0) {
+                        map.removeLayer(marker);
+                        clearInterval(interval);
+                    }
+                }, 1000);
+            });
+        }
     </script>
 </body>
 </html>
