@@ -18,7 +18,7 @@
         #map { width: 100%; height: 100vh; z-index: 1; background: #ddd; }
         #status-indicator { position: fixed; top: 10px; right: 10px; padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; z-index: 2000; background: #EF4444; color: white; transition: background 0.3s; }
         
-        /* 웰컴 & 로그인 화면 */
+        /* 웰컴 & 로그인 */
         #role-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999; display: flex; align-items: center; justify-content: center; }
         .role-box { background: white; padding: 30px; border-radius: 20px; text-align: center; width: 85%; max-width: 320px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
         .role-btn { display: block; width: 100%; padding: 15px; margin: 10px 0; border: none; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.2s; }
@@ -28,33 +28,50 @@
         .hidden { display: none; }
         .link-text { color: #666; font-size: 13px; text-decoration: underline; cursor: pointer; margin-top: 10px; display: block; }
 
-        /* 지도 요소 */
+        /* ★ [NEW] 손님용 지갑 (Wallet) */
+        #guest-wallet { 
+            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); 
+            background: white; padding: 15px 25px; border-radius: 50px; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3); z-index: 1500; display: none;
+            display: flex; align-items: center; gap: 10px; cursor: pointer;
+        }
+        .wallet-icon { font-size: 20px; }
+        .wallet-amount { font-weight: bold; font-size: 18px; color: #4F46E5; }
+
+        /* ★ [NEW] 결제용 번쩍이는 화면 (Flash Overlay) */
+        #flash-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #2563EB; z-index: 99999; display: none;
+            align-items: center; justify-content: center; flex-direction: column;
+            color: white; text-align: center;
+        }
+        /* 번쩍이는 애니메이션 */
+        @keyframes flashEffect {
+            0% { opacity: 1; background: #2563EB; }
+            50% { opacity: 0.3; background: #60A5FA; }
+            100% { opacity: 1; background: #2563EB; }
+        }
+        .flashing { animation: flashEffect 0.3s infinite; }
+        
+        /* 사장님 컨트롤 및 기타 UI는 기존 유지 */
         #crosshair { position: fixed; top: 50%; left: 50%; width: 40px; height: 40px; transform: translate(-50%, -50%); z-index: 1000; pointer-events: none; display: none; }
         #crosshair::before, #crosshair::after { content: ''; position: absolute; background: #EF4444; box-shadow: 0 0 4px white; border-radius: 2px; }
         #crosshair::before { top: 18px; left: 0; width: 40px; height: 4px; }
         #crosshair::after { top: 0; left: 18px; width: 4px; height: 40px; }
-        
-        /* ★ 사장님 리모컨 (Pro 스위치 포함) */
         #host-controls { position: fixed; bottom: -500px; left: 0; width: 100%; background: white; border-radius: 20px 20px 0 0; padding: 20px; z-index: 2000; transition: bottom 0.3s; padding-bottom: 40px; box-sizing: border-box; box-shadow: 0 -5px 20px rgba(0,0,0,0.1); }
         #host-controls.active { bottom: 0; }
-        
-        /* Pro 스위치 디자인 */
         .pro-toggle-area { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding: 10px; background: #F3F4F6; border-radius: 10px; border: 1px solid #E5E7EB; }
         .toggle-switch { position: relative; display: inline-block; width: 50px; height: 28px; }
         .toggle-switch input { opacity: 0; width: 0; height: 0; }
         .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
         .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
         input:checked + .slider { background-color: #4F46E5; } input:checked + .slider:before { transform: translateX(22px); }
-
         .promo-input { width: 100%; padding: 15px; border: 2px solid #E5E7EB; border-radius: 12px; font-size: 16px; margin-bottom: 15px; box-sizing: border-box; transition: 0.3s; }
         .promo-input:disabled { background: #f3f4f6; color: #999; cursor: not-allowed; }
-
         .action-buttons { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
         .action-btn { padding: 12px 2px; border: none; border-radius: 12px; font-size: 13px; font-weight: bold; color: white; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 5px; word-break: keep-all; }
         .btn-red { background: #EF4444; } .btn-yellow { background: #F59E0B; } .btn-blue { background: #3B82F6; }
-        
         #open-controls-btn { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #111; color: white; padding: 12px 24px; border-radius: 50px; font-weight: bold; border: none; z-index: 1500; display: none; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
-        
         .leaflet-tooltip { display: none !important; border: 2px solid #333; border-radius: 8px; font-weight: bold; z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
         .map-zoomed-in .leaflet-tooltip { display: block !important; }
         .label-red { border-color: #EF4444; color: #EF4444; } .label-yellow { border-color: #F59E0B; color: #F59E0B; } .label-blue { border-color: #3B82F6; color: #3B82F6; }
@@ -64,16 +81,22 @@
     <div id="status-indicator">🔴 연결 끊김</div>
     <div id="crosshair"></div>
     
+    <div id="flash-overlay" onclick="stopFlash()">
+        <h1 style="font-size:40px; font-weight:900;">BLUEPIN<br>PAY</h1>
+        <p>사장님께 보여주세요!</p>
+        <p style="margin-top:20px; font-size:14px; opacity:0.8;">(화면을 터치하면 꺼집니다)</p>
+    </div>
+
     <div id="role-overlay">
         <div id="step-role" class="role-box">
-            <h2>BluePin 📍</h2>
-            <p style="color:#666; font-size:14px; margin-bottom:20px;">우리 동네 핫딜 지도</p>
-            <button class="role-btn btn-guest" onclick="setRole('guest')">🙋‍♂️ 손님으로 구경하기</button>
-            <button class="role-btn btn-host" onclick="showLogin()">🏪 사장님 (핀 꽂기)</button>
+            <h2>BluePin V8.0 📍</h2>
+            <p style="color:#666; font-size:14px; margin-bottom:20px;">경제 시스템 (Wallet & Pay)</p>
+            <button class="role-btn btn-guest" onclick="selectRole('guest')">🙋‍♂️ 손님 (포인트 받기)</button>
+            <button class="role-btn btn-host" onclick="selectRole('host')">🏪 사장님 (핀 꽂기)</button>
         </div>
 
         <div id="step-login" class="role-box hidden">
-            <h3>🔑 사장님 로그인</h3>
+            <h3 id="login-title">로그인</h3>
             <input type="text" id="login-id" class="login-input" placeholder="아이디">
             <input type="password" id="login-pw" class="login-input" placeholder="비밀번호">
             <button class="role-btn btn-host" onclick="doLogin()">로그인</button>
@@ -82,8 +105,8 @@
         </div>
 
         <div id="step-signup" class="role-box hidden">
-            <h3>📝 사장님 회원가입</h3>
-            <input type="text" id="sign-store" class="login-input" placeholder="가게 이름 (예: 성수족발)">
+            <h3 id="signup-title">회원가입</h3>
+            <input type="text" id="sign-store" class="login-input hidden" placeholder="가게 이름 (예: 성수족발)">
             <input type="text" id="sign-id" class="login-input" placeholder="아이디">
             <input type="password" id="sign-pw" class="login-input" placeholder="비밀번호">
             <button class="role-btn btn-host" onclick="doSignup()">가입 완료</button>
@@ -94,11 +117,16 @@
     <div id="map"></div>
     <button id="open-controls-btn" onclick="toggleControls()">📣 여기 알리기</button>
 
+    <div id="guest-wallet" style="display:none;" onclick="startFlash()">
+        <span class="wallet-icon">💰</span>
+        <span class="wallet-amount" id="my-points">0 BP</span>
+        <span style="font-size:12px; color:#666; margin-left:5px;">사용하기 ></span>
+    </div>
+
     <div id="host-controls">
         <div style="text-align:center; margin-bottom:10px; font-size:12px; color:#666;">
             현재 접속: <span id="current-store-name" style="font-weight:bold; color:#4F46E5;">가게이름</span>
         </div>
-
         <div class="pro-toggle-area">
             <span style="font-weight:bold; font-size:14px;">💎 Pro 멤버십 (On/Off)</span>
             <label class="toggle-switch">
@@ -106,9 +134,7 @@
                 <span class="slider"></span>
             </label>
         </div>
-        
         <input type="text" id="promo-text" class="promo-input" placeholder="원하는 문구를 입력하세요">
-        
         <div class="action-buttons">
             <button class="action-btn btn-red" onclick="handlePromo('discount', '🔥 선착순/마감 세일')">🔥 긴급 / 할인</button>
             <button class="action-btn btn-yellow" onclick="handlePromo('fresh', '📢 신메뉴/신상 출시')">📢 소식 / 알림</button>
@@ -120,7 +146,12 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
         let socket;
-        let myStoreName = "";
+        let myRole = ""; // 'host' or 'guest'
+        let selectedRole = ""; // 가입할 때 선택한 역할
+
+        // ★ 결제 사운드 (효과음)
+        // 무료 효과음 URL (띠링~ 소리)
+        const coinSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3');
 
         const statusEl = document.getElementById('status-indicator');
         try {
@@ -140,15 +171,25 @@
         });
         if(map.getZoom() >= 16) document.getElementById('map').classList.add('map-zoomed-in');
 
-        // --- 화면 전환 ---
-        function setRole(role) {
+        // --- 화면 전환 & 역할 선택 ---
+        function selectRole(role) {
+            selectedRole = role;
+            document.getElementById('step-role').classList.add('hidden');
+            document.getElementById('step-login').classList.remove('hidden');
+            
+            // 문구 변경
             if(role === 'guest') {
-                document.getElementById('role-overlay').style.display = 'none';
-                setTimeout(() => map.invalidateSize(), 100);
+                document.getElementById('login-title').innerText = "🙋‍♂️ 손님 로그인";
+                document.getElementById('signup-title').innerText = "🙋‍♂️ 손님 회원가입 (1000P 지급)";
+                document.getElementById('sign-store').classList.add('hidden'); // 손님은 가게이름 필요없음
+            } else {
+                document.getElementById('login-title').innerText = "🏪 사장님 로그인";
+                document.getElementById('signup-title').innerText = "🏪 사장님 회원가입";
+                document.getElementById('sign-store').classList.remove('hidden');
             }
         }
+
         function showLogin() {
-            document.getElementById('step-role').classList.add('hidden');
             document.getElementById('step-signup').classList.add('hidden');
             document.getElementById('step-login').classList.remove('hidden');
         }
@@ -161,22 +202,36 @@
             document.getElementById('step-role').classList.remove('hidden');
         }
 
-        // --- 회원가입 & 로그인 ---
+        // --- 회원가입 ---
         async function doSignup() {
-            const store = document.getElementById('sign-store').value;
             const id = document.getElementById('sign-id').value;
             const pw = document.getElementById('sign-pw').value;
-            if(!store || !id || !pw) { alert("모두 입력해주세요!"); return; }
+            const store = document.getElementById('sign-store').value;
+
+            // 유효성 검사
+            if(!id || !pw) { alert("아이디와 비밀번호를 입력하세요."); return; }
+            if(selectedRole === 'host' && !store) { alert("가게 이름을 입력하세요."); return; }
+
             const res = await fetch('/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username: id, password: pw, storeName: store })
+                body: JSON.stringify({ 
+                    username: id, 
+                    password: pw, 
+                    role: selectedRole, 
+                    storeName: store 
+                })
             });
             const data = await res.json();
-            if(data.success) { alert("가입 환영합니다! 로그인해주세요."); showLogin(); } 
-            else { alert("가입 실패: " + data.message); }
+            if(data.success) { 
+                alert(data.message); 
+                showLogin(); 
+            } else { 
+                alert("가입 실패: " + data.message); 
+            }
         }
 
+        // --- 로그인 ---
         async function doLogin() {
             const id = document.getElementById('login-id').value;
             const pw = document.getElementById('login-pw').value;
@@ -186,97 +241,88 @@
                 body: JSON.stringify({ username: id, password: pw })
             });
             const data = await res.json();
+
             if(data.success) {
-                myStoreName = data.storeName;
-                document.getElementById('current-store-name').innerText = myStoreName;
+                myRole = data.role;
                 document.getElementById('role-overlay').style.display = 'none';
-                
-                document.getElementById('open-controls-btn').style.display = 'block';
-                document.getElementById('crosshair').style.display = 'block';
+
+                if (myRole === 'host') {
+                    // 사장님 UI
+                    document.getElementById('current-store-name').innerText = data.storeName;
+                    document.getElementById('open-controls-btn').style.display = 'block';
+                    document.getElementById('crosshair').style.display = 'block';
+                    toggleProMode();
+                } else {
+                    // ★ 손님 UI (지갑 보여주기)
+                    document.getElementById('guest-wallet').style.display = 'flex';
+                    document.getElementById('my-points').innerText = data.points + " BP";
+                    alert(`환영합니다! 현재 포인트: ${data.points} BP`);
+                }
+
                 if (navigator.geolocation) {
                     navigator.geolocation.getCurrentPosition(pos => { map.setView([pos.coords.latitude, pos.coords.longitude], 18); });
                 }
                 setTimeout(() => map.invalidateSize(), 100);
-                toggleProMode(); // 초기 상태 반영
-            } else { alert(data.message); }
+            } else {
+                alert(data.message);
+            }
         }
 
-        function toggleControls() { document.getElementById('host-controls').classList.toggle('active'); }
+        // --- ★ [Sound Pay] 기능 ---
+        function startFlash() {
+            if(confirm("1000 BP를 사용하여 혜택을 받으시겠습니까?")) {
+                const overlay = document.getElementById('flash-overlay');
+                overlay.style.display = 'flex';
+                overlay.classList.add('flashing'); // 번쩍이는 효과 시작
+                coinSound.play(); // 띠링~ 소리 재생
+            }
+        }
+        function stopFlash() {
+            const overlay = document.getElementById('flash-overlay');
+            overlay.style.display = 'none';
+            overlay.classList.remove('flashing');
+            coinSound.pause();
+            coinSound.currentTime = 0;
+        }
 
-        // ★ Pro 스위치 로직 (무료 vs 유료)
+        // --- 사장님 기능 (기존 유지) ---
+        function toggleControls() { document.getElementById('host-controls').classList.toggle('active'); }
         function toggleProMode() {
             const isPro = document.getElementById('pro-switch').checked;
             const inputField = document.getElementById('promo-text');
-            
-            inputField.disabled = !isPro; // 꺼져있으면 입력 불가
-            if (isPro) {
-                inputField.placeholder = "원하는 문구를 입력하세요";
-                inputField.style.background = "white";
-            } else {
-                inputField.placeholder = "🔒 유료: 직접 입력 불가 (기본 문구만)";
-                inputField.value = ""; // 내용 지움
-                inputField.style.background = "#f3f4f6";
-            }
+            inputField.disabled = !isPro;
+            if (isPro) { inputField.placeholder = "원하는 문구를 입력하세요"; inputField.style.background = "white"; } 
+            else { inputField.placeholder = "🔒 유료: 직접 입력 불가 (기본 문구만)"; inputField.value = ""; inputField.style.background = "#f3f4f6"; }
         }
-
         document.getElementById('promo-text').addEventListener("keypress", function(event) {
-            if (event.key === "Enter") {
-                event.preventDefault();
-                if(document.getElementById('pro-switch').checked) document.querySelector('.btn-red').click();
-            }
+            if (event.key === "Enter") { event.preventDefault(); if(document.getElementById('pro-switch').checked) document.querySelector('.btn-red').click(); }
         });
-
         function handlePromo(type, defaultText) {
             const isPro = document.getElementById('pro-switch').checked;
             const inputField = document.getElementById('promo-text');
-            
-            // Pro면 입력한 값, 아니면 기본 값(Free)
             let finalText = isPro ? inputField.value.trim() : defaultText;
-
-            if (isPro && !finalText) { 
-                alert("내용을 입력해주세요!"); 
-                inputField.focus(); 
-                return; 
-            }
-            
-            // 비속어 필터
+            if (isPro && !finalText) { alert("내용을 입력해주세요!"); inputField.focus(); return; }
             const FORBIDDEN_WORDS = ['바보', '멍청이', '망해라', '개XX', 'ㅅㅂ', '꺼져'];
             for (let badWord of FORBIDDEN_WORDS) { if (finalText.includes(badWord)) { alert("🚫 비속어 금지!"); return; } }
-            
             sendSignal(type, finalText);
         }
-
         function sendSignal(type, text) {
             if (!socket || !socket.connected) { alert("🚨 서버 연결 끊김"); return; }
             const center = map.getCenter();
             const jitterLat = (Math.random() - 0.5) * 0.00015;
             const jitterLng = (Math.random() - 0.5) * 0.00015;
-            
-            const data = { 
-                lat: center.lat + jitterLat, 
-                lng: center.lng + jitterLng, 
-                type: type, 
-                message: text,
-                storeName: myStoreName,
-                time: Date.now() 
-            };
-            
+            const data = { lat: center.lat + jitterLat, lng: center.lng + jitterLng, type: type, message: text, storeName: document.getElementById('current-store-name').innerText, time: Date.now() };
             socket.emit('bossSignal', data);
-            document.getElementById('promo-text').value = ''; 
-            toggleControls();
+            document.getElementById('promo-text').value = ''; toggleControls();
         }
-
         function addMarkerToMap(data) {
             const createdTime = new Date(data.createdAt || data.time).getTime();
             const timeLeft = 30 * 60 * 1000 - (Date.now() - createdTime);
             if (timeLeft <= 0) return;
-
             let colorClass = data.type === 'discount' ? 'label-red' : (data.type === 'fresh' ? 'label-yellow' : 'label-blue');
             const displayMsg = `[${data.storeName || '가게'}]<br>${data.message}`;
-            
             const marker = L.marker([data.lat, data.lng]).addTo(map);
             marker.bindTooltip(displayMsg, { permanent: true, direction: 'top', className: `custom-label ${colorClass}`, offset: [0, -10] }).openTooltip();
-            
             setTimeout(() => map.removeLayer(marker), timeLeft);
         }
     </script>
