@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>BluePin V12.0</title>
+    <title>BluePin V12.1 🎵</title>
     
     <link rel="icon" href="/logo.png">
     <link rel="apple-touch-icon" href="/logo.png">
@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     
     <style>
-        /* 스타일 */
+        /* 기존 스타일 유지 */
         body { margin: 0; padding: 0; font-family: 'Pretendard', sans-serif; overflow: hidden; background: #f5f5f5; }
         #map { width: 100%; height: 100vh; z-index: 1; background: #ddd; }
         .crosshair-cursor { cursor: crosshair !important; }
@@ -49,15 +49,10 @@
         .btn-red { background: #EF4444; } .btn-yellow { background: #F59E0B; } .btn-blue { background: #3B82F6; }
         #open-controls-btn { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #111; color: white; padding: 12px 24px; border-radius: 50px; font-weight: bold; border: none; z-index: 1500; display: none; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
         
-        /* 버튼 스타일 수정 */
         .delete-btn { width:100%; background:#EF4444; color:white; border:none; padding:8px; border-radius:5px; margin-top:5px; cursor:pointer; font-weight:bold; }
-        /* ★ [NEW] 보상 차등화 UI */
         .btn-camera { width:100%; background:#10B981; color:white; border:none; padding:12px; border-radius:8px; margin-top:5px; cursor:pointer; font-weight:bold; font-size:14px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
         .btn-text { width:100%; background:#3B82F6; color:white; border:none; padding:8px; border-radius:8px; margin-top:5px; cursor:pointer; font-weight:bold; font-size:12px; opacity: 0.9; }
-        
         .btn-translate { font-size: 11px; color: #666; background: #f3f4f6; border: 1px solid #ddd; padding: 3px 8px; border-radius: 12px; cursor: pointer; margin-top: 5px; }
-        
-        /* ★ [NEW] 신고 버튼 스타일 */
         .btn-report { font-size: 11px; color: #EF4444; background: white; border: 1px solid #EF4444; padding: 2px 6px; border-radius: 4px; cursor: pointer; position:absolute; top:5px; right:5px; }
 
         .label-white { background: white; border-color: #666; color: #333; }
@@ -79,8 +74,8 @@
 
     <div id="role-overlay">
         <div id="step-role" class="role-box">
-            <h2>BluePin V12.0 💎</h2>
-            <p style="color:#666; font-size:14px; margin-bottom:20px;">Reality Check Edition</p>
+            <h2>BluePin V12.1 🎵</h2>
+            <p style="color:#666; font-size:14px; margin-bottom:20px;">Audio Branding (Soft Voice)</p>
             <button class="role-btn btn-guest" onclick="selectRole('guest')">🙋‍♂️ 손님 (포인트 벌기)</button>
             <button class="role-btn btn-host" onclick="selectRole('host')">🏪 사장님 (핀 꽂기)</button>
         </div>
@@ -139,12 +134,31 @@
         let markers = {}; let isAskMode = false;
         let targetPinId = null; 
 
-        const coinSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3');
+        // ★ [Sound Pay] 오디오 브랜딩 기능
+        // 브라우저의 TTS(Text-to-Speech) 기능을 사용하여 "BluePin"을 말하게 함
+        function playBrandSound() {
+            if ('speechSynthesis' in window) {
+                // 1. "Blue Pin"이라고 말할 준비 (띄어쓰기 해야 발음이 더 좋음)
+                const utterance = new SpeechSynthesisUtterance("Blue Pin");
+                
+                // 2. 목소리 설정 (영어, 여성 목소리 선호)
+                utterance.lang = 'en-US'; 
+                utterance.rate = 0.8; // 속도: 0.8 (약간 천천히, 여유롭게)
+                utterance.pitch = 1.0; // 톤: 보통
+                utterance.volume = 1.0; // 볼륨: 최대 (펍에서도 들려야 하니까)
+
+                // 3. 말하기
+                window.speechSynthesis.speak(utterance);
+            } else {
+                // TTS 지원 안 하는 구형 브라우저용 백업 (띵 소리)
+                new Audio('https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3').play();
+            }
+        }
+
         const statusEl = document.getElementById('status-indicator');
         
-        // ★ [NEW] 햅틱 진동 함수
         function triggerHaptic() {
-            if (navigator.vibrate) navigator.vibrate(50); // 50ms 짧은 진동
+            if (navigator.vibrate) navigator.vibrate(50); 
         }
 
         try {
@@ -164,7 +178,7 @@
 
         map.on('click', function(e) {
             if (isAskMode) {
-                triggerHaptic(); // 지도 찍을 때 진동
+                triggerHaptic(); 
                 const text = prompt("여기에 무엇이 궁금한가요? (예: 여기 웨이팅 어때?)");
                 if (text) {
                     const data = { lat: e.latlng.lat, lng: e.latlng.lng, type: 'question', message: text, storeName: "❓궁금해요", username: myUsername, time: Date.now() };
@@ -222,14 +236,17 @@
             const data = await res.json();
             if (data.success) {
                 document.getElementById('my-points').innerText = data.newPoints + " BP";
-                const overlay = document.getElementById('flash-overlay'); overlay.style.display = 'flex'; overlay.classList.add('flashing'); coinSound.play();
+                const overlay = document.getElementById('flash-overlay'); overlay.style.display = 'flex'; overlay.classList.add('flashing'); 
+                
+                // ★ 여기서 브랜드 사운드 재생!
+                playBrandSound(); 
+
             } else { alert("❌ " + data.message); }
         }
-        function stopFlash() { const overlay = document.getElementById('flash-overlay'); overlay.style.display = 'none'; overlay.classList.remove('flashing'); coinSound.pause(); coinSound.currentTime = 0; }
+        function stopFlash() { const overlay = document.getElementById('flash-overlay'); overlay.style.display = 'none'; overlay.classList.remove('flashing'); } // 소리 멈춤은 없음(짧으니까)
         function deletePin(pinId) { triggerHaptic(); if(confirm("정말 이 핀을 삭제하시겠습니까?")) socket.emit('deletePin', pinId); }
         function enableAskMode() { triggerHaptic(); isAskMode = true; document.getElementById('map').classList.add('crosshair-cursor'); document.getElementById('toast-msg').style.display = 'block'; }
         
-        // ★ [NEW] 신고 기능
         function reportPin(pinId) {
             triggerHaptic();
             if(confirm("🚨 이 게시물을 신고하시겠습니까?\n(부적절한 내용일 경우 즉시 삭제됩니다)")) {
@@ -306,7 +323,6 @@
             const marker = L.marker([data.lat, data.lng]).addTo(map);
             marker.bindTooltip(displayMsg, { permanent: true, direction: 'top', className: `custom-label ${colorClass}`, offset: [0, -10] }).openTooltip();
             
-            // ★ [UPDATE] 팝업 내용 (신고 버튼 추가)
             let popupContent = `
                 <div style="text-align:center; position:relative;">
                     <button class="btn-report" onclick="reportPin('${data._id}')">🚨 신고</button>
@@ -318,7 +334,6 @@
 
             if ((myRole === 'host' && data.storeName === myStoreName) || (myRole === 'guest' && data.username === myUsername)) { popupContent += `<button class="delete-btn" onclick="deletePin('${data._id}')">🗑 삭제하기</button>`; }
             if (myRole === 'guest' && data.type === 'question' && data.username !== myUsername) {
-                // ★ 보상 차등화 안내
                 popupContent += `<button class="btn-text" onclick="answerWithText('${data._id}')">✍️ 텍스트로 제보 (+100 BP)</button>`;
                 popupContent += `<button class="btn-camera" onclick="triggerCamera('${data._id}')">📸 사진으로 인증 (+500 BP)</button>`;
             }
