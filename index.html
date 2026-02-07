@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>BluePin</title>
+    <title>BluePin Global 🌍</title>
     
     <link rel="icon" href="/logo.png">
     <link rel="apple-touch-icon" href="/logo.png">
@@ -49,10 +49,12 @@
         .btn-red { background: #EF4444; } .btn-yellow { background: #F59E0B; } .btn-blue { background: #3B82F6; }
         #open-controls-btn { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #111; color: white; padding: 12px 24px; border-radius: 50px; font-weight: bold; border: none; z-index: 1500; display: none; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
         .delete-btn { width:100%; background:#EF4444; color:white; border:none; padding:8px; border-radius:5px; margin-top:5px; cursor:pointer; font-weight:bold; }
-        
-        /* ★ [NEW] 버튼 스타일 2개 */
         .btn-camera { width:100%; background:#10B981; color:white; border:none; padding:8px; border-radius:5px; margin-top:5px; cursor:pointer; font-weight:bold; }
         .btn-text { width:100%; background:#3B82F6; color:white; border:none; padding:8px; border-radius:5px; margin-top:5px; cursor:pointer; font-weight:bold; }
+        
+        /* ★ [NEW] 번역 버튼 스타일 */
+        .btn-translate { font-size: 11px; color: #666; background: #f3f4f6; border: 1px solid #ddd; padding: 3px 8px; border-radius: 12px; cursor: pointer; margin-top: 5px; }
+        .btn-translate:hover { background: #e5e7eb; }
         
         .label-white { background: white; border-color: #666; color: #333; }
         #guest-ask-btn { position: fixed; bottom: 90px; right: 20px; width: 50px; height: 50px; border-radius: 50%; background: white; color: #333; border: 2px solid #ddd; font-size: 24px; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.2); z-index: 1500; display: none; cursor: pointer; }
@@ -73,8 +75,8 @@
 
     <div id="role-overlay">
         <div id="step-role" class="role-box">
-            <h2>BluePin V10.3 📍</h2>
-            <p style="color:#666; font-size:14px; margin-bottom:20px;">답변 방식 선택 (글 / 사진)</p>
+            <h2>BluePin V11.0 🌏</h2>
+            <p style="color:#666; font-size:14px; margin-bottom:20px;">Global Expansion (번역)</p>
             <button class="role-btn btn-guest" onclick="selectRole('guest')">🙋‍♂️ 손님 (포인트 벌기)</button>
             <button class="role-btn btn-host" onclick="selectRole('host')">🏪 사장님 (핀 꽂기)</button>
         </div>
@@ -212,43 +214,47 @@
         function stopFlash() { const overlay = document.getElementById('flash-overlay'); overlay.style.display = 'none'; overlay.classList.remove('flashing'); coinSound.pause(); coinSound.currentTime = 0; }
         function deletePin(pinId) { if(confirm("정말 이 핀을 삭제하시겠습니까?")) socket.emit('deletePin', pinId); }
         function enableAskMode() { isAskMode = true; document.getElementById('map').classList.add('crosshair-cursor'); document.getElementById('toast-msg').style.display = 'block'; }
-
-        // ★ [NEW] 1. 사진 인증
-        function triggerCamera(pinId) {
-            targetPinId = pinId;
-            if(confirm("📸 현장 사진을 촬영합니다.\n\n⚠️ 주의: 사람 얼굴이나 차량 번호판이 나오지 않게 찍어주세요!")) {
-                document.getElementById('camera-input').click(); 
-            }
-        }
+        function triggerCamera(pinId) { targetPinId = pinId; if(confirm("📸 현장 사진을 촬영합니다.\n\n⚠️ 주의: 사람 얼굴이나 차량 번호판이 나오지 않게 찍어주세요!")) { document.getElementById('camera-input').click(); } }
         function handlePhotoUpload(input) {
             if (input.files && input.files[0]) {
-                const file = input.files[0];
-                const reader = new FileReader();
+                const file = input.files[0]; const reader = new FileReader();
                 reader.onload = async function(e) {
                     const photoBase64 = e.target.result;
-                    const res = await fetch('/answer-mission', {
-                        method: 'POST', headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ username: myUsername, pinId: targetPinId, photo: photoBase64 })
-                    });
+                    const res = await fetch('/answer-mission', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: myUsername, pinId: targetPinId, photo: photoBase64 }) });
                     const data = await res.json();
-                    if(data.success) { alert("✅ 사진 인증 성공!\n💰 +500 BP 획득!"); document.getElementById('my-points').innerText = data.newPoints + " BP"; } 
-                    else { alert("오류: " + data.message); }
-                };
-                reader.readAsDataURL(file);
+                    if(data.success) { alert("✅ 사진 인증 성공!\n💰 +500 BP 획득!"); document.getElementById('my-points').innerText = data.newPoints + " BP"; } else { alert("오류: " + data.message); }
+                }; reader.readAsDataURL(file);
             }
         }
-
-        // ★ [NEW] 2. 텍스트 답변
         async function answerWithText(pinId) {
             const answer = prompt("답변을 입력하세요 (예: 텅 비었어요!)");
             if(answer) {
-                const res = await fetch('/answer-mission', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username: myUsername, pinId: pinId, answerText: answer })
-                });
+                const res = await fetch('/answer-mission', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: myUsername, pinId: pinId, answerText: answer }) });
                 const data = await res.json();
-                if(data.success) { alert("✅ 답변 등록 성공!\n💰 +500 BP 획득!"); document.getElementById('my-points').innerText = data.newPoints + " BP"; }
-                else { alert("오류: " + data.message); }
+                if(data.success) { alert("✅ 답변 등록 성공!\n💰 +500 BP 획득!"); document.getElementById('my-points').innerText = data.newPoints + " BP"; } else { alert("오류: " + data.message); }
+            }
+        }
+
+        // ★ [NEW] 실시간 번역 기능 (무료 API)
+        async function translatePin(pinId, originalText) {
+            try {
+                // 버튼 내용을 '번역 중...'으로 변경
+                const btn = document.getElementById(`trans-btn-${pinId}`);
+                if(btn) btn.innerText = "⏳ Translating...";
+
+                // 무료 번역 API 호출 (한국어 -> 영어)
+                const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(originalText)}&langpair=ko|en`);
+                const data = await res.json();
+                
+                if(data && data.responseData) {
+                    const translatedText = data.responseData.translatedText;
+                    // 핀 내용을 번역된 걸로 교체
+                    const msgEl = document.getElementById(`msg-${pinId}`);
+                    if(msgEl) msgEl.innerText = translatedText;
+                    if(btn) btn.style.display = 'none'; // 번역 후 버튼 숨김
+                }
+            } catch (e) {
+                alert("번역 실패 😢");
             }
         }
 
@@ -279,10 +285,17 @@
             const marker = L.marker([data.lat, data.lng]).addTo(map);
             marker.bindTooltip(displayMsg, { permanent: true, direction: 'top', className: `custom-label ${colorClass}`, offset: [0, -10] }).openTooltip();
             
-            let popupContent = `<div style="text-align:center;"><b>${data.message}</b><br>`;
+            // ★ [UPDATE] 팝업 내용 생성 (번역 버튼 추가)
+            // 메시지를 감싸는 span에 id 부여 (나중에 번역문으로 바꾸려고)
+            let popupContent = `
+                <div style="text-align:center;">
+                    <b id="msg-${data._id}">${data.message}</b>
+                    <br>
+                    <button id="trans-btn-${data._id}" class="btn-translate" onclick="translatePin('${data._id}', '${data.message}')">🌐 English</button>
+                    <br>
+            `;
+
             if ((myRole === 'host' && data.storeName === myStoreName) || (myRole === 'guest' && data.username === myUsername)) { popupContent += `<button class="delete-btn" onclick="deletePin('${data._id}')">🗑 삭제하기</button>`; }
-            
-            // ★ [NEW] 버튼 2개 보이기
             if (myRole === 'guest' && data.type === 'question' && data.username !== myUsername) {
                 popupContent += `<button class="btn-text" onclick="answerWithText('${data._id}')">✍️ 텍스트로 답변</button>`;
                 popupContent += `<button class="btn-camera" onclick="triggerCamera('${data._id}')">📸 사진으로 인증</button>`;
