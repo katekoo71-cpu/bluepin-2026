@@ -9,16 +9,14 @@
     <link rel="apple-touch-icon" href="/logo.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     
     <style>
-        /* 기본 스타일 */
+        /* 기존 스타일 유지 */
         body { margin: 0; padding: 0; font-family: 'Pretendard', sans-serif; overflow: hidden; background: #f5f5f5; }
         #map { width: 100%; height: 100vh; z-index: 1; background: #ddd; }
         #status-indicator { position: fixed; top: 10px; right: 10px; padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; z-index: 2000; background: #EF4444; color: white; transition: background 0.3s; }
         
-        /* 웰컴 & 로그인 */
         #role-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999; display: flex; align-items: center; justify-content: center; }
         .role-box { background: white; padding: 30px; border-radius: 20px; text-align: center; width: 85%; max-width: 320px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
         .role-btn { display: block; width: 100%; padding: 15px; margin: 10px 0; border: none; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.2s; }
@@ -28,7 +26,7 @@
         .hidden { display: none; }
         .link-text { color: #666; font-size: 13px; text-decoration: underline; cursor: pointer; margin-top: 10px; display: block; }
 
-        /* ★ [NEW] 손님용 지갑 (Wallet) */
+        /* 지갑 & 플래시 */
         #guest-wallet { 
             position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); 
             background: white; padding: 15px 25px; border-radius: 50px; 
@@ -38,14 +36,12 @@
         .wallet-icon { font-size: 20px; }
         .wallet-amount { font-weight: bold; font-size: 18px; color: #4F46E5; }
 
-        /* ★ [NEW] 결제용 번쩍이는 화면 (Flash Overlay) */
         #flash-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: #2563EB; z-index: 99999; display: none;
             align-items: center; justify-content: center; flex-direction: column;
             color: white; text-align: center;
         }
-        /* 번쩍이는 애니메이션 */
         @keyframes flashEffect {
             0% { opacity: 1; background: #2563EB; }
             50% { opacity: 0.3; background: #60A5FA; }
@@ -53,7 +49,7 @@
         }
         .flashing { animation: flashEffect 0.3s infinite; }
         
-        /* 사장님 컨트롤 및 기타 UI는 기존 유지 */
+        /* 사장님 UI */
         #crosshair { position: fixed; top: 50%; left: 50%; width: 40px; height: 40px; transform: translate(-50%, -50%); z-index: 1000; pointer-events: none; display: none; }
         #crosshair::before, #crosshair::after { content: ''; position: absolute; background: #EF4444; box-shadow: 0 0 4px white; border-radius: 2px; }
         #crosshair::before { top: 18px; left: 0; width: 40px; height: 4px; }
@@ -89,8 +85,8 @@
 
     <div id="role-overlay">
         <div id="step-role" class="role-box">
-            <h2>BluePin V8.0 📍</h2>
-            <p style="color:#666; font-size:14px; margin-bottom:20px;">경제 시스템 (Wallet & Pay)</p>
+            <h2>BluePin V8.1 📍</h2>
+            <p style="color:#666; font-size:14px; margin-bottom:20px;">포인트 차감 시스템 적용</p>
             <button class="role-btn btn-guest" onclick="selectRole('guest')">🙋‍♂️ 손님 (포인트 받기)</button>
             <button class="role-btn btn-host" onclick="selectRole('host')">🏪 사장님 (핀 꽂기)</button>
         </div>
@@ -146,11 +142,9 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
         let socket;
-        let myRole = ""; // 'host' or 'guest'
-        let selectedRole = ""; // 가입할 때 선택한 역할
-
-        // ★ 결제 사운드 (효과음)
-        // 무료 효과음 URL (띠링~ 소리)
+        let myRole = ""; 
+        let selectedRole = ""; 
+        let myUsername = ""; // ★ 현재 로그인한 아이디 저장 (포인트 깔 때 필요)
         const coinSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3');
 
         const statusEl = document.getElementById('status-indicator');
@@ -171,24 +165,21 @@
         });
         if(map.getZoom() >= 16) document.getElementById('map').classList.add('map-zoomed-in');
 
-        // --- 화면 전환 & 역할 선택 ---
+        // --- 화면 전환 ---
         function selectRole(role) {
             selectedRole = role;
             document.getElementById('step-role').classList.add('hidden');
             document.getElementById('step-login').classList.remove('hidden');
-            
-            // 문구 변경
             if(role === 'guest') {
                 document.getElementById('login-title').innerText = "🙋‍♂️ 손님 로그인";
                 document.getElementById('signup-title').innerText = "🙋‍♂️ 손님 회원가입 (1000P 지급)";
-                document.getElementById('sign-store').classList.add('hidden'); // 손님은 가게이름 필요없음
+                document.getElementById('sign-store').classList.add('hidden');
             } else {
                 document.getElementById('login-title').innerText = "🏪 사장님 로그인";
                 document.getElementById('signup-title').innerText = "🏪 사장님 회원가입";
                 document.getElementById('sign-store').classList.remove('hidden');
             }
         }
-
         function showLogin() {
             document.getElementById('step-signup').classList.add('hidden');
             document.getElementById('step-login').classList.remove('hidden');
@@ -202,36 +193,22 @@
             document.getElementById('step-role').classList.remove('hidden');
         }
 
-        // --- 회원가입 ---
+        // --- 회원가입 & 로그인 ---
         async function doSignup() {
             const id = document.getElementById('sign-id').value;
             const pw = document.getElementById('sign-pw').value;
             const store = document.getElementById('sign-store').value;
-
-            // 유효성 검사
             if(!id || !pw) { alert("아이디와 비밀번호를 입력하세요."); return; }
             if(selectedRole === 'host' && !store) { alert("가게 이름을 입력하세요."); return; }
-
             const res = await fetch('/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    username: id, 
-                    password: pw, 
-                    role: selectedRole, 
-                    storeName: store 
-                })
+                body: JSON.stringify({ username: id, password: pw, role: selectedRole, storeName: store })
             });
             const data = await res.json();
-            if(data.success) { 
-                alert(data.message); 
-                showLogin(); 
-            } else { 
-                alert("가입 실패: " + data.message); 
-            }
+            if(data.success) { alert(data.message); showLogin(); } else { alert("가입 실패: " + data.message); }
         }
 
-        // --- 로그인 ---
         async function doLogin() {
             const id = document.getElementById('login-id').value;
             const pw = document.getElementById('login-pw').value;
@@ -241,40 +218,51 @@
                 body: JSON.stringify({ username: id, password: pw })
             });
             const data = await res.json();
-
             if(data.success) {
                 myRole = data.role;
+                myUsername = id; // ★ 아이디 저장 (결제할 때 씀)
                 document.getElementById('role-overlay').style.display = 'none';
-
                 if (myRole === 'host') {
-                    // 사장님 UI
                     document.getElementById('current-store-name').innerText = data.storeName;
                     document.getElementById('open-controls-btn').style.display = 'block';
                     document.getElementById('crosshair').style.display = 'block';
                     toggleProMode();
                 } else {
-                    // ★ 손님 UI (지갑 보여주기)
                     document.getElementById('guest-wallet').style.display = 'flex';
                     document.getElementById('my-points').innerText = data.points + " BP";
                     alert(`환영합니다! 현재 포인트: ${data.points} BP`);
                 }
-
                 if (navigator.geolocation) {
                     navigator.geolocation.getCurrentPosition(pos => { map.setView([pos.coords.latitude, pos.coords.longitude], 18); });
                 }
                 setTimeout(() => map.invalidateSize(), 100);
-            } else {
-                alert(data.message);
-            }
+            } else { alert(data.message); }
         }
 
-        // --- ★ [Sound Pay] 기능 ---
-        function startFlash() {
-            if(confirm("1000 BP를 사용하여 혜택을 받으시겠습니까?")) {
+        // --- ★ [업데이트] 결제 및 차감 기능 ---
+        async function startFlash() {
+            if(!confirm("1000 BP를 사용하여 혜택을 받으시겠습니까?")) return;
+
+            // 1. 서버에 돈 깎아달라고 요청
+            const res = await fetch('/use-point', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: myUsername })
+            });
+            const data = await res.json();
+
+            // 2. 성공하면 번쩍임, 실패하면 거절
+            if (data.success) {
+                // UI 포인트 갱신
+                document.getElementById('my-points').innerText = data.newPoints + " BP";
+                
+                // 번쩍이기 & 소리
                 const overlay = document.getElementById('flash-overlay');
                 overlay.style.display = 'flex';
-                overlay.classList.add('flashing'); // 번쩍이는 효과 시작
-                coinSound.play(); // 띠링~ 소리 재생
+                overlay.classList.add('flashing');
+                coinSound.play();
+            } else {
+                alert("❌ " + data.message); // "잔액이 부족합니다!" 알림
             }
         }
         function stopFlash() {
@@ -285,7 +273,6 @@
             coinSound.currentTime = 0;
         }
 
-        // --- 사장님 기능 (기존 유지) ---
         function toggleControls() { document.getElementById('host-controls').classList.toggle('active'); }
         function toggleProMode() {
             const isPro = document.getElementById('pro-switch').checked;
