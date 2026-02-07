@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     
     <style>
-        /* 스타일 그대로 유지 */
+        /* 기존 스타일 유지 */
         body { margin: 0; padding: 0; font-family: 'Pretendard', sans-serif; overflow: hidden; background: #f5f5f5; }
         #map { width: 100%; height: 100vh; z-index: 1; background: #ddd; }
         #status-indicator { position: fixed; top: 10px; right: 10px; padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; z-index: 2000; background: #EF4444; color: white; transition: background 0.3s; }
@@ -49,11 +49,12 @@
         }
         .flashing { animation: flashEffect 0.3s infinite; }
         
-        /* 사장님 UI */
+        /* UI 컨트롤 */
         #crosshair { position: fixed; top: 50%; left: 50%; width: 40px; height: 40px; transform: translate(-50%, -50%); z-index: 1000; pointer-events: none; display: none; }
         #crosshair::before, #crosshair::after { content: ''; position: absolute; background: #EF4444; box-shadow: 0 0 4px white; border-radius: 2px; }
         #crosshair::before { top: 18px; left: 0; width: 40px; height: 4px; }
         #crosshair::after { top: 0; left: 18px; width: 4px; height: 40px; }
+        
         #host-controls { position: fixed; bottom: -500px; left: 0; width: 100%; background: white; border-radius: 20px 20px 0 0; padding: 20px; z-index: 2000; transition: bottom 0.3s; padding-bottom: 40px; box-sizing: border-box; box-shadow: 0 -5px 20px rgba(0,0,0,0.1); }
         #host-controls.active { bottom: 0; }
         .pro-toggle-area { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding: 10px; background: #F3F4F6; border-radius: 10px; border: 1px solid #E5E7EB; }
@@ -67,13 +68,28 @@
         .action-buttons { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
         .action-btn { padding: 12px 2px; border: none; border-radius: 12px; font-size: 13px; font-weight: bold; color: white; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 5px; word-break: keep-all; }
         .btn-red { background: #EF4444; } .btn-yellow { background: #F59E0B; } .btn-blue { background: #3B82F6; }
+        
         #open-controls-btn { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #111; color: white; padding: 12px 24px; border-radius: 50px; font-weight: bold; border: none; z-index: 1500; display: none; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
         .leaflet-tooltip { display: none !important; border: 2px solid #333; border-radius: 8px; font-weight: bold; z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
         .map-zoomed-in .leaflet-tooltip { display: block !important; }
         .label-red { border-color: #EF4444; color: #EF4444; } .label-yellow { border-color: #F59E0B; color: #F59E0B; } .label-blue { border-color: #3B82F6; color: #3B82F6; }
         
-        /* ★ [NEW] 삭제 버튼 스타일 */
+        /* 버튼 스타일들 */
         .delete-btn { width:100%; background:#EF4444; color:white; border:none; padding:8px; border-radius:5px; margin-top:5px; cursor:pointer; font-weight:bold; }
+        .answer-btn { width:100%; background:#10B981; color:white; border:none; padding:8px; border-radius:5px; margin-top:5px; cursor:pointer; font-weight:bold; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+        
+        .label-white { background: white; border-color: #666; color: #333; }
+        
+        /* ★ [NEW] 손님용 질문 버튼 */
+        #guest-ask-btn { 
+            position: fixed; bottom: 90px; right: 20px; 
+            width: 50px; height: 50px; border-radius: 50%; 
+            background: white; color: #333; border: 2px solid #ddd;
+            font-size: 24px; font-weight: bold; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            z-index: 1500; display: none; cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -88,9 +104,9 @@
 
     <div id="role-overlay">
         <div id="step-role" class="role-box">
-            <h2>BluePin V9.0 📍</h2>
-            <p style="color:#666; font-size:14px; margin-bottom:20px;">삭제 기능 추가 (Sold Out)</p>
-            <button class="role-btn btn-guest" onclick="selectRole('guest')">🙋‍♂️ 손님 (포인트 받기)</button>
+            <h2>BluePin V10.0 📍</h2>
+            <p style="color:#666; font-size:14px; margin-bottom:20px;">C2C 미션 & 보상 시스템</p>
+            <button class="role-btn btn-guest" onclick="selectRole('guest')">🙋‍♂️ 손님 (포인트 벌기)</button>
             <button class="role-btn btn-host" onclick="selectRole('host')">🏪 사장님 (핀 꽂기)</button>
         </div>
 
@@ -114,7 +130,10 @@
     </div>
     
     <div id="map"></div>
+    
     <button id="open-controls-btn" onclick="toggleControls()">📣 여기 알리기</button>
+
+    <button id="guest-ask-btn" onclick="askQuestion()">❓</button>
 
     <div id="guest-wallet" style="display:none;" onclick="startFlash()">
         <span class="wallet-icon">💰</span>
@@ -148,8 +167,8 @@
         let myRole = ""; 
         let selectedRole = ""; 
         let myUsername = ""; 
-        let myStoreName = ""; // ★ 내 가게 이름 저장 (삭제 권한 확인용)
-        let markers = {}; // ★ 지도에 있는 핀들을 관리하는 장부
+        let myStoreName = "";
+        let markers = {}; 
 
         const coinSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3');
         const statusEl = document.getElementById('status-indicator');
@@ -161,16 +180,12 @@
             
             socket.on('loadPins', (pins) => { pins.forEach(pin => addMarkerToMap(pin)); });
             socket.on('newSignal', (data) => { addMarkerToMap(data); });
-            
-            // ★ [NEW] 서버가 "이 핀 지워!" 하면 지도에서 제거
             socket.on('removePin', (id) => {
                 if (markers[id]) {
-                    map.removeLayer(markers[id]); // 지도에서 핀 뽑기
-                    delete markers[id]; // 장부에서 지우기
-                    console.log("핀 삭제됨:", id);
+                    map.removeLayer(markers[id]); 
+                    delete markers[id]; 
                 }
             });
-
         } catch (e) { statusEl.innerText = "⚠️ 오류"; }
 
         let map = L.map('map').setView([37.5445, 127.0560], 16);
@@ -182,6 +197,7 @@
         });
         if(map.getZoom() >= 16) document.getElementById('map').classList.add('map-zoomed-in');
 
+        // --- 기능 함수들 ---
         function selectRole(role) {
             selectedRole = role;
             document.getElementById('step-role').classList.add('hidden');
@@ -196,47 +212,24 @@
                 document.getElementById('sign-store').classList.remove('hidden');
             }
         }
-        function showLogin() {
-            document.getElementById('step-signup').classList.add('hidden');
-            document.getElementById('step-login').classList.remove('hidden');
-        }
-        function showSignup() {
-            document.getElementById('step-login').classList.add('hidden');
-            document.getElementById('step-signup').classList.remove('hidden');
-        }
-        function backToRole() {
-            document.getElementById('step-login').classList.add('hidden');
-            document.getElementById('step-role').classList.remove('hidden');
-        }
+        function showLogin() { document.getElementById('step-signup').classList.add('hidden'); document.getElementById('step-login').classList.remove('hidden'); }
+        function showSignup() { document.getElementById('step-login').classList.add('hidden'); document.getElementById('step-signup').classList.remove('hidden'); }
+        function backToRole() { document.getElementById('step-login').classList.add('hidden'); document.getElementById('step-role').classList.remove('hidden'); }
 
         async function doSignup() {
-            const id = document.getElementById('sign-id').value;
-            const pw = document.getElementById('sign-pw').value;
-            const store = document.getElementById('sign-store').value;
-            if(!id || !pw) { alert("아이디와 비밀번호를 입력하세요."); return; }
-            if(selectedRole === 'host' && !store) { alert("가게 이름을 입력하세요."); return; }
-            const res = await fetch('/register', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username: id, password: pw, role: selectedRole, storeName: store })
-            });
+            const id = document.getElementById('sign-id').value; const pw = document.getElementById('sign-pw').value; const store = document.getElementById('sign-store').value;
+            if(!id || !pw) return alert("입력해주세요");
+            const res = await fetch('/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: id, password: pw, role: selectedRole, storeName: store }) });
             const data = await res.json();
             if(data.success) { alert(data.message); showLogin(); } else { alert("가입 실패: " + data.message); }
         }
 
         async function doLogin() {
-            const id = document.getElementById('login-id').value;
-            const pw = document.getElementById('login-pw').value;
-            const res = await fetch('/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username: id, password: pw })
-            });
+            const id = document.getElementById('login-id').value; const pw = document.getElementById('login-pw').value;
+            const res = await fetch('/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: id, password: pw }) });
             const data = await res.json();
             if(data.success) {
-                myRole = data.role;
-                myUsername = id; 
-                myStoreName = data.storeName; // ★ 내 가게 이름 저장
+                myRole = data.role; myUsername = id; myStoreName = data.storeName;
                 document.getElementById('role-overlay').style.display = 'none';
                 if (myRole === 'host') {
                     document.getElementById('current-store-name').innerText = data.storeName;
@@ -246,45 +239,62 @@
                 } else {
                     document.getElementById('guest-wallet').style.display = 'flex';
                     document.getElementById('my-points').innerText = data.points + " BP";
+                    document.getElementById('guest-ask-btn').style.display = 'block'; // ★ 질문 버튼 보임
+                    document.getElementById('crosshair').style.display = 'block'; // 핀 꽂기용 십자가
                     alert(`환영합니다! 현재 포인트: ${data.points} BP`);
                 }
-                if (navigator.geolocation) {
-                    navigator.geolocation.getCurrentPosition(pos => { map.setView([pos.coords.latitude, pos.coords.longitude], 18); });
-                }
+                if (navigator.geolocation) navigator.geolocation.getCurrentPosition(pos => { map.setView([pos.coords.latitude, pos.coords.longitude], 18); });
                 setTimeout(() => map.invalidateSize(), 100);
             } else { alert(data.message); }
         }
 
         async function startFlash() {
             if(!confirm("1000 BP를 사용하여 혜택을 받으시겠습니까?")) return;
-            const res = await fetch('/use-point', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username: myUsername })
-            });
+            const res = await fetch('/use-point', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: myUsername }) });
             const data = await res.json();
             if (data.success) {
                 document.getElementById('my-points').innerText = data.newPoints + " BP";
-                const overlay = document.getElementById('flash-overlay');
-                overlay.style.display = 'flex';
-                overlay.classList.add('flashing');
-                coinSound.play();
-            } else {
-                alert("❌ " + data.message); 
+                const overlay = document.getElementById('flash-overlay'); overlay.style.display = 'flex'; overlay.classList.add('flashing'); coinSound.play();
+            } else { alert("❌ " + data.message); }
+        }
+        function stopFlash() { const overlay = document.getElementById('flash-overlay'); overlay.style.display = 'none'; overlay.classList.remove('flashing'); coinSound.pause(); coinSound.currentTime = 0; }
+
+        function deletePin(pinId) { if(confirm("정말 이 핀을 삭제하시겠습니까?")) socket.emit('deletePin', pinId); }
+
+        // ★ [NEW] 손님: 질문하기 기능
+        function askQuestion() {
+            const text = prompt("무엇이 궁금한가요? (예: 여기 웨이팅 어때?)");
+            if(text) {
+                const center = map.getCenter();
+                // 질문 핀은 type: 'question'
+                const data = { 
+                    lat: center.lat, lng: center.lng, 
+                    type: 'question', 
+                    message: text, 
+                    storeName: "❓궁금해요", 
+                    username: myUsername,
+                    time: Date.now() 
+                };
+                socket.emit('bossSignal', data);
             }
         }
-        function stopFlash() {
-            const overlay = document.getElementById('flash-overlay');
-            overlay.style.display = 'none';
-            overlay.classList.remove('flashing');
-            coinSound.pause();
-            coinSound.currentTime = 0;
-        }
 
-        // ★ [NEW] 핀 삭제 요청 함수
-        function deletePin(pinId) {
-            if(confirm("정말 이 핀을 삭제하시겠습니까? (즉시 사라집니다)")) {
-                socket.emit('deletePin', pinId);
+        // ★ [NEW] 손님: 답변하고 돈 벌기
+        async function answerMission(pinId) {
+            const answer = prompt("답변을 입력하세요 (예: 지금 텅 비었어요!)");
+            if(answer) {
+                const res = await fetch('/answer-mission', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: myUsername, pinId: pinId })
+                });
+                const data = await res.json();
+                if(data.success) {
+                    alert(`✅ 미션 성공! 답변 감사합니다.\n💰 +500 BP 획득!\n(잔액: ${data.newPoints} BP)`);
+                    document.getElementById('my-points').innerText = data.newPoints + " BP";
+                } else {
+                    alert("오류: " + data.message);
+                }
             }
         }
 
@@ -313,7 +323,7 @@
             const center = map.getCenter();
             const jitterLat = (Math.random() - 0.5) * 0.00015;
             const jitterLng = (Math.random() - 0.5) * 0.00015;
-            const data = { lat: center.lat + jitterLat, lng: center.lng + jitterLng, type: type, message: text, storeName: document.getElementById('current-store-name').innerText, time: Date.now() };
+            const data = { lat: center.lat + jitterLat, lng: center.lng + jitterLng, type: type, message: text, storeName: document.getElementById('current-store-name').innerText, username: myUsername, time: Date.now() };
             socket.emit('bossSignal', data);
             document.getElementById('promo-text').value = ''; toggleControls();
         }
@@ -323,34 +333,35 @@
             const timeLeft = 30 * 60 * 1000 - (Date.now() - createdTime);
             if (timeLeft <= 0) return;
 
-            let colorClass = data.type === 'discount' ? 'label-red' : (data.type === 'fresh' ? 'label-yellow' : 'label-blue');
+            // ★ 핀 색상 결정 (질문 핀은 하얀색)
+            let colorClass = '';
+            if (data.type === 'question') colorClass = 'label-white';
+            else if (data.type === 'discount') colorClass = 'label-red';
+            else if (data.type === 'fresh') colorClass = 'label-yellow';
+            else colorClass = 'label-blue';
+
             const displayMsg = `[${data.storeName || '가게'}]<br>${data.message}`;
-            
             const marker = L.marker([data.lat, data.lng]).addTo(map);
             marker.bindTooltip(displayMsg, { permanent: true, direction: 'top', className: `custom-label ${colorClass}`, offset: [0, -10] }).openTooltip();
             
-            // ★ [NEW] 내 가게 핀이면, 클릭했을 때 삭제 버튼 보여주기
-            if (myRole === 'host' && data.storeName === myStoreName) {
-                const popupContent = `
-                    <div style="text-align:center;">
-                        <b>${data.message}</b><br>
-                        <button class="delete-btn" onclick="deletePin('${data._id}')">🗑 삭제하기</button>
-                    </div>
-                `;
-                marker.bindPopup(popupContent);
-            }
-
-            // ★ 핀 관리 장부에 등록 (삭제할 때 찾으려고)
-            if(data._id) {
-                markers[data._id] = marker;
+            // ★ 클릭 이벤트 (팝업)
+            let popupContent = `<div style="text-align:center;"><b>${data.message}</b><br>`;
+            
+            // 1. 내 핀이면 삭제 버튼
+            if ((myRole === 'host' && data.storeName === myStoreName) || (myRole === 'guest' && data.username === myUsername)) {
+                popupContent += `<button class="delete-btn" onclick="deletePin('${data._id}')">🗑 삭제하기</button>`;
             }
             
-            setTimeout(() => {
-                if(markers[data._id]) { // 아직 안 지워졌다면
-                    map.removeLayer(marker);
-                    delete markers[data._id];
-                }
-            }, timeLeft);
+            // 2. 남의 질문 핀이면 답변 버튼 (돈 벌기!)
+            if (myRole === 'guest' && data.type === 'question' && data.username !== myUsername) {
+                popupContent += `<button class="answer-btn" onclick="answerMission('${data._id}')">💬 답변하고 500P 받기</button>`;
+            }
+            popupContent += `</div>`;
+            
+            marker.bindPopup(popupContent);
+
+            if(data._id) markers[data._id] = marker;
+            setTimeout(() => { if(markers[data._id]) { map.removeLayer(marker); delete markers[data._id]; } }, timeLeft);
         }
     </script>
 </body>
