@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>BluePin Global 🌍</title>
+    <title>BluePin V12.0</title>
     
     <link rel="icon" href="/logo.png">
     <link rel="apple-touch-icon" href="/logo.png">
@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     
     <style>
-        /* 기존 스타일 유지 */
+        /* 스타일 */
         body { margin: 0; padding: 0; font-family: 'Pretendard', sans-serif; overflow: hidden; background: #f5f5f5; }
         #map { width: 100%; height: 100vh; z-index: 1; background: #ddd; }
         .crosshair-cursor { cursor: crosshair !important; }
@@ -48,14 +48,18 @@
         .action-btn { padding: 12px 2px; border: none; border-radius: 12px; font-size: 13px; font-weight: bold; color: white; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 5px; word-break: keep-all; }
         .btn-red { background: #EF4444; } .btn-yellow { background: #F59E0B; } .btn-blue { background: #3B82F6; }
         #open-controls-btn { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #111; color: white; padding: 12px 24px; border-radius: 50px; font-weight: bold; border: none; z-index: 1500; display: none; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        
+        /* 버튼 스타일 수정 */
         .delete-btn { width:100%; background:#EF4444; color:white; border:none; padding:8px; border-radius:5px; margin-top:5px; cursor:pointer; font-weight:bold; }
-        .btn-camera { width:100%; background:#10B981; color:white; border:none; padding:8px; border-radius:5px; margin-top:5px; cursor:pointer; font-weight:bold; }
-        .btn-text { width:100%; background:#3B82F6; color:white; border:none; padding:8px; border-radius:5px; margin-top:5px; cursor:pointer; font-weight:bold; }
+        /* ★ [NEW] 보상 차등화 UI */
+        .btn-camera { width:100%; background:#10B981; color:white; border:none; padding:12px; border-radius:8px; margin-top:5px; cursor:pointer; font-weight:bold; font-size:14px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        .btn-text { width:100%; background:#3B82F6; color:white; border:none; padding:8px; border-radius:8px; margin-top:5px; cursor:pointer; font-weight:bold; font-size:12px; opacity: 0.9; }
         
-        /* ★ [NEW] 번역 버튼 스타일 */
         .btn-translate { font-size: 11px; color: #666; background: #f3f4f6; border: 1px solid #ddd; padding: 3px 8px; border-radius: 12px; cursor: pointer; margin-top: 5px; }
-        .btn-translate:hover { background: #e5e7eb; }
         
+        /* ★ [NEW] 신고 버튼 스타일 */
+        .btn-report { font-size: 11px; color: #EF4444; background: white; border: 1px solid #EF4444; padding: 2px 6px; border-radius: 4px; cursor: pointer; position:absolute; top:5px; right:5px; }
+
         .label-white { background: white; border-color: #666; color: #333; }
         #guest-ask-btn { position: fixed; bottom: 90px; right: 20px; width: 50px; height: 50px; border-radius: 50%; background: white; color: #333; border: 2px solid #ddd; font-size: 24px; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.2); z-index: 1500; display: none; cursor: pointer; }
     </style>
@@ -75,8 +79,8 @@
 
     <div id="role-overlay">
         <div id="step-role" class="role-box">
-            <h2>BluePin V11.0 🌏</h2>
-            <p style="color:#666; font-size:14px; margin-bottom:20px;">Global Expansion (번역)</p>
+            <h2>BluePin V12.0 💎</h2>
+            <p style="color:#666; font-size:14px; margin-bottom:20px;">Reality Check Edition</p>
             <button class="role-btn btn-guest" onclick="selectRole('guest')">🙋‍♂️ 손님 (포인트 벌기)</button>
             <button class="role-btn btn-host" onclick="selectRole('host')">🏪 사장님 (핀 꽂기)</button>
         </div>
@@ -138,6 +142,11 @@
         const coinSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3');
         const statusEl = document.getElementById('status-indicator');
         
+        // ★ [NEW] 햅틱 진동 함수
+        function triggerHaptic() {
+            if (navigator.vibrate) navigator.vibrate(50); // 50ms 짧은 진동
+        }
+
         try {
             socket = io();
             socket.on('connect', () => { statusEl.innerText = "🟢 실시간 연결됨"; statusEl.style.background = "#10B981"; });
@@ -155,6 +164,7 @@
 
         map.on('click', function(e) {
             if (isAskMode) {
+                triggerHaptic(); // 지도 찍을 때 진동
                 const text = prompt("여기에 무엇이 궁금한가요? (예: 여기 웨이팅 어때?)");
                 if (text) {
                     const data = { lat: e.latlng.lat, lng: e.latlng.lng, type: 'question', message: text, storeName: "❓궁금해요", username: myUsername, time: Date.now() };
@@ -165,6 +175,7 @@
         });
 
         function selectRole(role) {
+            triggerHaptic();
             selectedRole = role; document.getElementById('step-role').classList.add('hidden'); document.getElementById('step-login').classList.remove('hidden');
             if(role === 'guest') { document.getElementById('login-title').innerText = "🙋‍♂️ 손님 로그인"; document.getElementById('signup-title').innerText = "🙋‍♂️ 손님 회원가입 (1000P 지급)"; document.getElementById('sign-store').classList.add('hidden'); } 
             else { document.getElementById('login-title').innerText = "🏪 사장님 로그인"; document.getElementById('signup-title').innerText = "🏪 사장님 회원가입"; document.getElementById('sign-store').classList.remove('hidden'); }
@@ -174,6 +185,7 @@
         function backToRole() { document.getElementById('step-login').classList.add('hidden'); document.getElementById('step-role').classList.remove('hidden'); }
 
         async function doSignup() {
+            triggerHaptic();
             const id = document.getElementById('sign-id').value; const pw = document.getElementById('sign-pw').value; const store = document.getElementById('sign-store').value;
             if(!id || !pw) return alert("입력해주세요");
             const res = await fetch('/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: id, password: pw, role: selectedRole, storeName: store }) });
@@ -182,6 +194,7 @@
         }
 
         async function doLogin() {
+            triggerHaptic();
             const id = document.getElementById('login-id').value; const pw = document.getElementById('login-pw').value;
             const res = await fetch('/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: id, password: pw }) });
             const data = await res.json();
@@ -203,6 +216,7 @@
         }
 
         async function startFlash() {
+            triggerHaptic();
             if(!confirm("1000 BP를 사용하여 혜택을 받으시겠습니까?")) return;
             const res = await fetch('/use-point', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: myUsername }) });
             const data = await res.json();
@@ -212,9 +226,22 @@
             } else { alert("❌ " + data.message); }
         }
         function stopFlash() { const overlay = document.getElementById('flash-overlay'); overlay.style.display = 'none'; overlay.classList.remove('flashing'); coinSound.pause(); coinSound.currentTime = 0; }
-        function deletePin(pinId) { if(confirm("정말 이 핀을 삭제하시겠습니까?")) socket.emit('deletePin', pinId); }
-        function enableAskMode() { isAskMode = true; document.getElementById('map').classList.add('crosshair-cursor'); document.getElementById('toast-msg').style.display = 'block'; }
-        function triggerCamera(pinId) { targetPinId = pinId; if(confirm("📸 현장 사진을 촬영합니다.\n\n⚠️ 주의: 사람 얼굴이나 차량 번호판이 나오지 않게 찍어주세요!")) { document.getElementById('camera-input').click(); } }
+        function deletePin(pinId) { triggerHaptic(); if(confirm("정말 이 핀을 삭제하시겠습니까?")) socket.emit('deletePin', pinId); }
+        function enableAskMode() { triggerHaptic(); isAskMode = true; document.getElementById('map').classList.add('crosshair-cursor'); document.getElementById('toast-msg').style.display = 'block'; }
+        
+        // ★ [NEW] 신고 기능
+        function reportPin(pinId) {
+            triggerHaptic();
+            if(confirm("🚨 이 게시물을 신고하시겠습니까?\n(부적절한 내용일 경우 즉시 삭제됩니다)")) {
+                socket.emit('reportPin', pinId);
+                alert("신고가 접수되어 삭제 처리되었습니다.");
+            }
+        }
+
+        function triggerCamera(pinId) { 
+            triggerHaptic();
+            targetPinId = pinId; if(confirm("📸 현장 사진을 촬영합니다.\n\n⚠️ 주의: 사람 얼굴이나 차량 번호판이 나오지 않게 찍어주세요!")) { document.getElementById('camera-input').click(); } 
+        }
         function handlePhotoUpload(input) {
             if (input.files && input.files[0]) {
                 const file = input.files[0]; const reader = new FileReader();
@@ -227,44 +254,38 @@
             }
         }
         async function answerWithText(pinId) {
+            triggerHaptic();
             const answer = prompt("답변을 입력하세요 (예: 텅 비었어요!)");
             if(answer) {
                 const res = await fetch('/answer-mission', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: myUsername, pinId: pinId, answerText: answer }) });
                 const data = await res.json();
-                if(data.success) { alert("✅ 답변 등록 성공!\n💰 +500 BP 획득!"); document.getElementById('my-points').innerText = data.newPoints + " BP"; } else { alert("오류: " + data.message); }
+                if(data.success) { alert("✅ 제보 성공!\n💰 +100 BP 획득!"); document.getElementById('my-points').innerText = data.newPoints + " BP"; } else { alert("오류: " + data.message); }
             }
         }
 
-        // ★ [NEW] 실시간 번역 기능 (무료 API)
         async function translatePin(pinId, originalText) {
+            triggerHaptic();
             try {
-                // 버튼 내용을 '번역 중...'으로 변경
-                const btn = document.getElementById(`trans-btn-${pinId}`);
-                if(btn) btn.innerText = "⏳ Translating...";
-
-                // 무료 번역 API 호출 (한국어 -> 영어)
+                const btn = document.getElementById(`trans-btn-${pinId}`); if(btn) btn.innerText = "⏳ Translating...";
                 const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(originalText)}&langpair=ko|en`);
                 const data = await res.json();
-                
                 if(data && data.responseData) {
                     const translatedText = data.responseData.translatedText;
-                    // 핀 내용을 번역된 걸로 교체
-                    const msgEl = document.getElementById(`msg-${pinId}`);
-                    if(msgEl) msgEl.innerText = translatedText;
-                    if(btn) btn.style.display = 'none'; // 번역 후 버튼 숨김
+                    const msgEl = document.getElementById(`msg-${pinId}`); if(msgEl) msgEl.innerText = translatedText;
+                    if(btn) btn.style.display = 'none';
                 }
-            } catch (e) {
-                alert("번역 실패 😢");
-            }
+            } catch (e) { alert("번역 실패 😢"); }
         }
 
-        function toggleControls() { document.getElementById('host-controls').classList.toggle('active'); }
+        function toggleControls() { triggerHaptic(); document.getElementById('host-controls').classList.toggle('active'); }
         function toggleProMode() {
+            triggerHaptic();
             const isPro = document.getElementById('pro-switch').checked; const inputField = document.getElementById('promo-text');
             inputField.disabled = !isPro; if (isPro) { inputField.placeholder = "원하는 문구를 입력하세요"; inputField.style.background = "white"; } else { inputField.placeholder = "🔒 유료: 직접 입력 불가 (기본 문구만)"; inputField.value = ""; inputField.style.background = "#f3f4f6"; }
         }
         document.getElementById('promo-text').addEventListener("keypress", function(event) { if (event.key === "Enter") { event.preventDefault(); if(document.getElementById('pro-switch').checked) document.querySelector('.btn-red').click(); } });
         function handlePromo(type, defaultText) {
+            triggerHaptic();
             const isPro = document.getElementById('pro-switch').checked; const inputField = document.getElementById('promo-text');
             let finalText = isPro ? inputField.value.trim() : defaultText; if (isPro && !finalText) { alert("내용을 입력해주세요!"); inputField.focus(); return; }
             const FORBIDDEN_WORDS = ['바보', '멍청이', '망해라', '개XX', 'ㅅㅂ', '꺼져']; for (let badWord of FORBIDDEN_WORDS) { if (finalText.includes(badWord)) { alert("🚫 비속어 금지!"); return; } }
@@ -285,10 +306,10 @@
             const marker = L.marker([data.lat, data.lng]).addTo(map);
             marker.bindTooltip(displayMsg, { permanent: true, direction: 'top', className: `custom-label ${colorClass}`, offset: [0, -10] }).openTooltip();
             
-            // ★ [UPDATE] 팝업 내용 생성 (번역 버튼 추가)
-            // 메시지를 감싸는 span에 id 부여 (나중에 번역문으로 바꾸려고)
+            // ★ [UPDATE] 팝업 내용 (신고 버튼 추가)
             let popupContent = `
-                <div style="text-align:center;">
+                <div style="text-align:center; position:relative;">
+                    <button class="btn-report" onclick="reportPin('${data._id}')">🚨 신고</button>
                     <b id="msg-${data._id}">${data.message}</b>
                     <br>
                     <button id="trans-btn-${data._id}" class="btn-translate" onclick="translatePin('${data._id}', '${data.message}')">🌐 English</button>
@@ -297,8 +318,9 @@
 
             if ((myRole === 'host' && data.storeName === myStoreName) || (myRole === 'guest' && data.username === myUsername)) { popupContent += `<button class="delete-btn" onclick="deletePin('${data._id}')">🗑 삭제하기</button>`; }
             if (myRole === 'guest' && data.type === 'question' && data.username !== myUsername) {
-                popupContent += `<button class="btn-text" onclick="answerWithText('${data._id}')">✍️ 텍스트로 답변</button>`;
-                popupContent += `<button class="btn-camera" onclick="triggerCamera('${data._id}')">📸 사진으로 인증</button>`;
+                // ★ 보상 차등화 안내
+                popupContent += `<button class="btn-text" onclick="answerWithText('${data._id}')">✍️ 텍스트로 제보 (+100 BP)</button>`;
+                popupContent += `<button class="btn-camera" onclick="triggerCamera('${data._id}')">📸 사진으로 인증 (+500 BP)</button>`;
             }
             popupContent += `</div>`;
             marker.bindPopup(popupContent);
