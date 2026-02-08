@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>BluePin V13.11 (Brand Identity) 📍</title>
+    <title>BluePin V13.12 (Logo Fix) 📍</title>
     
     <link rel="icon" href="/logo.png">
     <link rel="apple-touch-icon" href="/logo.png">
@@ -19,19 +19,20 @@
         
         #status-indicator { position: fixed; top: 10px; right: 10px; padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; z-index: 2000; background: #EF4444; color: white; transition: background 0.3s; }
         
-        /* 스플래시 화면 */
         #splash-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 99999; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.8s ease-out; }
         #splash-logo { width: 60%; max-width: 250px; height: auto; }
 
-        /* ★ [B-Pin 스타일] 로고 그대로 사용 (배경 투명) */
+        /* ★ [긴급 수정] B-Pin 스타일 강화 */
         .custom-logo-pin {
-            background: transparent; 
-            border: none;
-            /* 로고 모양에 딱 맞춰 떨어지는 그림자 (입체감 UP) */
-            filter: drop-shadow(3px 5px 2px rgba(0,0,0,0.3)); 
+            background: transparent !important; /* 배경 투명 강제 적용 */
+            border: none !important;            /* 테두리 없음 강제 적용 */
+            box-shadow: none !important;        /* 박스 그림자 제거 */
+            /* 로고 모양에 맞춰 그림자 생성 */
+            filter: drop-shadow(3px 4px 3px rgba(0,0,0,0.3)); 
+            /* ★ 핵심: 비율 유지하며 찌그러짐 방지 */
+            object-fit: contain; 
         }
         
-        /* 핀 꽂힐 때 퉁~ 튀는 애니메이션 */
         @keyframes pinDrop {
             0% { transform: translateY(-40px) scale(1); opacity: 0; }
             50% { transform: translateY(0) scale(1); opacity: 1; }
@@ -158,7 +159,7 @@
         .leaflet-tooltip { display: none !important; border: 2px solid #333; border-radius: 8px; font-weight: bold; z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
         .map-zoomed-in .leaflet-tooltip { display: block !important; }
         
-        /* 테두리 색상으로 핀의 종류 구분 (핀 자체는 B 로고로 통일) */
+        /* 테두리 색상으로 핀의 종류 구분 */
         .label-red { border-color: #EF4444; color: #EF4444; } 
         .label-yellow { border-color: #F59E0B; color: #F59E0B; } 
         .label-blue { border-color: #3B82F6; color: #3B82F6; } 
@@ -209,7 +210,6 @@
                     <span class="user-role" id="mp-role">Role</span>
                 </div>
             </div>
-
             <div id="guest-mypage" class="hidden">
                 <div style="background:#EEF2FF; padding:15px; border-radius:12px; margin-bottom:15px;">
                     <span style="font-size:12px; color:#666;">보유 포인트</span><br>
@@ -218,7 +218,6 @@
                 <h4 style="text-align:left; margin:10px 0;">📜 포인트 내역</h4>
                 <div class="history-list" id="mp-history"></div>
             </div>
-
             <div id="host-mypage" class="hidden">
                 <h4 style="text-align:left; margin:10px 0;">💎 등급 관리</h4>
                 <div id="tier-list">
@@ -236,7 +235,6 @@
                     </div>
                 </div>
             </div>
-
             <button class="delete-btn" onclick="logout()" style="margin-top:20px; background:#999;">로그아웃</button>
             <span class="link-text" onclick="closeMyPage()">❌ 닫기</span>
         </div>
@@ -308,12 +306,12 @@
         brandSound.preload = 'auto';
         const statusEl = document.getElementById('status-indicator');
         
-        // ★ [모든 핀 공통] B-Pin 로고 설정
+        // ★ [긴급 수정] 로고 비율 및 중심점 조정
         const bluePinIcon = L.icon({
-            iconUrl: '/logo.png', // 깃허브의 logo.png 사용
-            iconSize: [45, 45],   // 사이즈
-            iconAnchor: [22.5, 45], // 뾰족한 끝이 좌표에 닿게
-            popupAnchor: [0, -45], 
+            iconUrl: '/logo.png', 
+            iconSize: [36, 54],   // 가로 36, 세로 54 (길쭉한 비율)
+            iconAnchor: [18, 54], // X=중앙(18), Y=바닥(54)
+            popupAnchor: [0, -54], // 말풍선은 핀 머리 위로
             className: 'custom-logo-pin pin-anim'
         });
 
@@ -423,16 +421,11 @@
             let colorClass = ''; let displayText = data.message; let rewardBadge = "";
             if (data.type === 'question' && data.reward) rewardBadge = `<span style="font-size:10px; background:#4F46E5; color:white; padding:2px 4px; border-radius:4px; margin-left:4px;">💰${data.reward}</span>`;
 
-            if (data.type === 'question') colorClass = 'label-white'; 
-            else if (data.type === 'answered') { colorClass = 'label-green'; displayText = "✅ 답변 도착!"; } 
-            else if (data.type === 'discount') colorClass = 'label-red'; 
-            else if (data.type === 'fresh') colorClass = 'label-yellow'; 
-            else colorClass = 'label-blue';
+            if (data.type === 'question') colorClass = 'label-white'; else if (data.type === 'answered') { colorClass = 'label-green'; displayText = "✅ 답변 도착!"; } else if (data.type === 'discount') colorClass = 'label-red'; else if (data.type === 'fresh') colorClass = 'label-yellow'; else colorClass = 'label-blue';
             
-            // ★ [모든 핀 공통] 무조건 bluePinIcon 사용 (B-Pin)
             const marker = L.marker([data.lat, data.lng], { icon: bluePinIcon }).addTo(map);
-
-            marker.bindTooltip(`[${data.storeName || '가게'}]<br>${displayText} ${rewardBadge}`, { permanent: true, direction: 'top', className: `custom-label ${colorClass}`, offset: [0, -45] }).openTooltip();
+            // ★ 수정됨: 말풍선 위치(offset)를 핀 크기에 맞춰 위로 조정
+            marker.bindTooltip(`[${data.storeName || '가게'}]<br>${displayText} ${rewardBadge}`, { permanent: true, direction: 'top', className: `custom-label ${colorClass}`, offset: [0, -54] }).openTooltip();
             
             let popupContent = `<div style="text-align:center; position:relative;">`;
             if (data.type === 'answered') {
