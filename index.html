@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>BluePin V13.1 (Sound Pay Optimized) 🎵</title>
+    <title>BluePin V13.2 (Live Answer) 🎵</title>
     
     <link rel="icon" href="/logo.png">
     <link rel="apple-touch-icon" href="/logo.png">
@@ -82,11 +82,18 @@
         .btn-text { width:100%; background:#3B82F6; color:white; border:none; padding:8px; border-radius:8px; margin-top:5px; cursor:pointer; font-weight:bold; font-size:12px; opacity: 0.9; }
         .btn-translate { font-size: 11px; color: #666; background: #f3f4f6; border: 1px solid #ddd; padding: 3px 8px; border-radius: 12px; cursor: pointer; margin-top: 5px; }
         .btn-report { font-size: 11px; color: #EF4444; background: white; border: 1px solid #EF4444; padding: 2px 6px; border-radius: 4px; cursor: pointer; position:absolute; top:5px; right:5px; }
-        .label-white { background: white; border-color: #666; color: #333; }
-        #guest-ask-btn { position: fixed; bottom: 90px; right: 20px; width: 50px; height: 50px; border-radius: 50%; background: white; color: #333; border: 2px solid #ddd; font-size: 24px; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.2); z-index: 1500; display: none; cursor: pointer; }
+        
         .leaflet-tooltip { display: none !important; border: 2px solid #333; border-radius: 8px; font-weight: bold; z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
         .map-zoomed-in .leaflet-tooltip { display: block !important; }
-        .label-red { border-color: #EF4444; color: #EF4444; } .label-yellow { border-color: #F59E0B; color: #F59E0B; } .label-blue { border-color: #3B82F6; color: #3B82F6; }
+        
+        /* 핀 색상 스타일 */
+        .label-red { border-color: #EF4444; color: #EF4444; } 
+        .label-yellow { border-color: #F59E0B; color: #F59E0B; } 
+        .label-blue { border-color: #3B82F6; color: #3B82F6; }
+        .label-white { background: white; border-color: #666; color: #333; }
+        
+        /* ★ [NEW] 답변 완료(초록색) 핀 스타일 */
+        .label-green { border-color: #10B981; color: #10B981; background: white; }
     </style>
 </head>
 <body>
@@ -103,6 +110,7 @@
         <p>사장님께 보여주세요!</p>
         <p style="margin-top:20px; font-size:14px; opacity:0.8;">(화면을 터치하면 꺼집니다)</p>
     </div>
+    
     <input type="file" id="camera-input" accept="image/*" capture="environment" style="display:none;" onchange="handlePhotoUpload(this)">
 
     <div id="login-overlay">
@@ -167,13 +175,12 @@
         let myRole = ""; let selectedRole = ""; let myUsername = ""; let myStoreName = "";
         let markers = {}; let isAskMode = false; let targetPinId = null; 
 
+        // ★ [Sound Pay 최적화] 오디오 미리 로딩 (딜레이 방지)
+        const brandSound = new Audio('/brand_sound.mp3');
+        brandSound.preload = 'auto';
+
         const statusEl = document.getElementById('status-indicator');
         
-        // ★ [Sound Pay 최적화] 오디오 객체를 전역 변수로 미리 생성 (Pre-loading)
-        // 사용자가 버튼을 누르기 전에 브라우저가 파일을 미리 다운로드 받아둡니다.
-        const brandSound = new Audio('/brand_sound.mp3');
-        brandSound.preload = 'auto'; // 핵심: 자동 로드 설정
-
         // 스플래시 화면 
         window.onload = function() {
             setTimeout(() => {
@@ -183,17 +190,13 @@
             }, 2000);
         };
 
-        // ★ [Sound Pay 실행 함수 수정]
+        // ★ [Sound Pay 실행]
         function playBrandSound() {
             try {
                 brandSound.volume = 1.0;
-                brandSound.currentTime = 0; // 연속 클릭 시 처음부터 다시 재생
-                brandSound.play().catch(e => {
-                    console.log("Audio play failed (Autoplay policy):", e);
-                });
-            } catch (e) {
-                console.log("Audio file error");
-            }
+                brandSound.currentTime = 0;
+                brandSound.play().catch(e => console.log("Audio play failed (Autoplay policy):", e));
+            } catch (e) { console.log("Audio file error"); }
         }
 
         function triggerHaptic() { if (navigator.vibrate) navigator.vibrate(50); }
@@ -202,9 +205,26 @@
             socket = io();
             socket.on('connect', () => { statusEl.innerText = "🟢 실시간 연결됨"; statusEl.style.background = "#10B981"; });
             socket.on('disconnect', () => { statusEl.innerText = "🔴 연결 끊김"; statusEl.style.background = "#EF4444"; });
+            
             socket.on('loadPins', (pins) => { pins.forEach(pin => addMarkerToMap(pin)); });
             socket.on('newSignal', (data) => { addMarkerToMap(data); });
             socket.on('removePin', (id) => { if (markers[id]) { map.removeLayer(markers[id]); delete markers[id]; } });
+
+            // ★ [NEW] 답변 완료 이벤트 수신 (초록 핀으로 교체)
+            socket.on('pinAnswered', (data) => {
+                // 1. 기존 하얀 핀 삭제
+                if (markers[data.pinId]) { map.removeLayer(markers[data.pinId]); delete markers[data.pinId]; }
+                
+                // 2. 초록색 완료 핀 생성
+                addMarkerToMap(data.updatedPin);
+
+                // 3. 내가 질문자라면 알림
+                if (data.asker === myUsername) {
+                    playBrandSound(); 
+                    alert("💌 질문에 대한 답변이 도착했습니다!\n지도에서 초록색 핀을 확인하세요.");
+                }
+            });
+
         } catch (e) { statusEl.innerText = "⚠️ 오류"; }
 
         let map = L.map('map').setView([37.5445, 127.0560], 16);
@@ -225,12 +245,10 @@
         });
 
         function openLoginModal(role) {
-            triggerHaptic();
-            selectedRole = role;
+            triggerHaptic(); selectedRole = role;
             document.getElementById('login-overlay').style.display = 'flex';
             document.getElementById('step-login').classList.remove('hidden');
             document.getElementById('step-signup').classList.add('hidden');
-            
             if(role === 'guest') { 
                 document.getElementById('login-title').innerText = "🙋‍♂️ 손님 로그인"; 
                 document.getElementById('signup-title').innerText = "🙋‍♂️ 손님 회원가입 (1000P 지급)"; 
@@ -241,12 +259,7 @@
                 document.getElementById('sign-store').classList.remove('hidden'); 
             }
         }
-        
-        function closeLoginModal() {
-            triggerHaptic();
-            document.getElementById('login-overlay').style.display = 'none';
-        }
-
+        function closeLoginModal() { triggerHaptic(); document.getElementById('login-overlay').style.display = 'none'; }
         function showLogin() { document.getElementById('step-signup').classList.add('hidden'); document.getElementById('step-login').classList.remove('hidden'); }
         function showSignup() { document.getElementById('step-login').classList.add('hidden'); document.getElementById('step-signup').classList.remove('hidden'); }
 
@@ -268,7 +281,6 @@
                 myRole = data.role; myUsername = id; myStoreName = data.storeName;
                 document.getElementById('login-overlay').style.display = 'none';
                 document.getElementById('bottom-menu-bar').style.display = 'none'; 
-
                 if (myRole === 'host') {
                     document.getElementById('current-store-name').innerText = data.storeName;
                     document.getElementById('open-controls-btn').style.display = 'block'; document.getElementById('crosshair').style.display = 'block';
@@ -286,14 +298,9 @@
         async function startFlash() {
             triggerHaptic();
             if(!confirm("1000 BP를 사용하여 혜택을 받으시겠습니까?")) return;
-            
-            // ★ 소리 재생 호출
             playBrandSound(); 
-
             const overlay = document.getElementById('flash-overlay'); 
-            overlay.style.display = 'flex'; 
-            overlay.classList.add('flashing');
-
+            overlay.style.display = 'flex'; overlay.classList.add('flashing');
             try {
                 const res = await fetch('/use-point', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: myUsername }) });
                 const data = await res.json();
@@ -314,11 +321,13 @@
         }
 
         function triggerCamera(pinId) { triggerHaptic(); targetPinId = pinId; if(confirm("📸 현장 사진을 촬영합니다.\n\n⚠️ 주의: 사람 얼굴이나 차량 번호판이 나오지 않게 찍어주세요!")) { document.getElementById('camera-input').click(); } }
+        
         function handlePhotoUpload(input) {
             if (input.files && input.files[0]) {
                 const file = input.files[0]; const reader = new FileReader();
                 reader.onload = async function(e) {
                     const photoBase64 = e.target.result;
+                    // 서버로 전송 (서버에서 pinAnswered 이벤트를 발생시켜야 함)
                     const res = await fetch('/answer-mission', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: myUsername, pinId: targetPinId, photo: photoBase64 }) });
                     const data = await res.json();
                     if(data.success) { alert("✅ 사진 인증 성공!\n💰 +500 BP 획득!"); document.getElementById('my-points').innerText = data.newPoints + " BP"; } else { alert("오류: " + data.message); }
@@ -370,30 +379,75 @@
             socket.emit('bossSignal', data); document.getElementById('promo-text').value = ''; toggleControls();
         }
 
+        // ★ [핵심 로직] 핀 종류별 표시 및 자동 삭제
         function addMarkerToMap(data) {
-            const createdTime = new Date(data.createdAt || data.time).getTime(); const timeLeft = 30 * 60 * 1000 - (Date.now() - createdTime);
-            if (timeLeft <= 0) return;
-            let colorClass = ''; if (data.type === 'question') colorClass = 'label-white'; else if (data.type === 'discount') colorClass = 'label-red'; else if (data.type === 'fresh') colorClass = 'label-yellow'; else colorClass = 'label-blue';
-            const displayMsg = `[${data.storeName || '가게'}]<br>${data.message}`;
+            const createdTime = new Date(data.createdAt || data.time).getTime(); 
+            
+            // 답변 완료된 핀은 10분(600초), 일반 핀은 30분(1800초) 뒤 증발
+            let duration = 30 * 60 * 1000; 
+            if (data.type === 'answered') {
+                duration = 10 * 60 * 1000; 
+            }
+
+            const timeLeft = duration - (Date.now() - createdTime);
+            if (timeLeft <= 0) return; 
+            
+            let colorClass = ''; 
+            let displayText = data.message;
+
+            if (data.type === 'question') {
+                colorClass = 'label-white'; 
+            } else if (data.type === 'answered') {
+                colorClass = 'label-green'; // ★ 초록색 핀
+                displayText = "✅ 답변 도착!"; 
+            } else if (data.type === 'discount') colorClass = 'label-red'; 
+            else if (data.type === 'fresh') colorClass = 'label-yellow'; 
+            else colorClass = 'label-blue';
+            
+            const displayMsg = `[${data.storeName || '가게'}]<br>${displayText}`;
+            
             const marker = L.marker([data.lat, data.lng]).addTo(map);
             marker.bindTooltip(displayMsg, { permanent: true, direction: 'top', className: `custom-label ${colorClass}`, offset: [0, -10] }).openTooltip();
             
-            let popupContent = `
-                <div style="text-align:center; position:relative;">
+            let popupContent = `<div style="text-align:center; position:relative;">`;
+            
+            // ★ 답변 완료 핀이면 내용 공개
+            if (data.type === 'answered') {
+                popupContent += `<b style="color:#10B981;">💌 도착한 답변:</b><br>`;
+                if (data.answerPhoto) {
+                    popupContent += `<img src="${data.answerPhoto}" style="width:100%; max-width:200px; border-radius:8px; margin-top:5px;"><br>`;
+                }
+                if (data.answerText) {
+                    popupContent += `<p style="background:#f3f4f6; padding:8px; border-radius:8px; margin-top:5px; font-size:13px;">"${data.answerText}"</p>`;
+                }
+                popupContent += `<small style="color:#888;">by 익명의 행인</small>`;
+            } else {
+                // 일반 핀 내용
+                popupContent += `
                     <button class="btn-report" onclick="reportPin('${data._id}')">🚨 신고</button>
                     <b id="msg-${data._id}">${data.message}</b>
                     <br>
                     <button id="trans-btn-${data._id}" class="btn-translate" onclick="translatePin('${data._id}', '${data.message}')">🌐 English</button>
                     <br>
-            `;
-            if ((myRole === 'host' && data.storeName === myStoreName) || (myRole === 'guest' && data.username === myUsername)) { popupContent += `<button class="delete-btn" onclick="deletePin('${data._id}')">🗑 삭제하기</button>`; }
+                `;
+            }
+
+            // 버튼 표시 로직
+            if ((myRole === 'host' && data.storeName === myStoreName) || (myRole === 'guest' && data.username === myUsername)) { 
+                popupContent += `<button class="delete-btn" onclick="deletePin('${data._id}')">🗑 삭제하기</button>`; 
+            }
+            // 질문 핀이고, 내가 쓴 게 아니면 -> 답변 버튼 보이기
             if (myRole === 'guest' && data.type === 'question' && data.username !== myUsername) {
                 popupContent += `<button class="btn-text" onclick="answerWithText('${data._id}')">✍️ 텍스트로 제보 (+100 BP)</button>`;
                 popupContent += `<button class="btn-camera" onclick="triggerCamera('${data._id}')">📸 사진으로 인증 (+500 BP)</button>`;
             }
             popupContent += `</div>`;
+            
             marker.bindPopup(popupContent);
-            if(data._id) markers[data._id] = marker; setTimeout(() => { if(markers[data._id]) { map.removeLayer(marker); delete markers[data._id]; } }, timeLeft);
+            if(data._id) markers[data._id] = marker; 
+            
+            // 남은 시간 뒤에 지도에서 핀 제거
+            setTimeout(() => { if(markers[data._id]) { map.removeLayer(marker); delete markers[data._id]; } }, timeLeft);
         }
     </script>
 </body>
