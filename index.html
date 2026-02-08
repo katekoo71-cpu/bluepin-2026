@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>BluePin V13.12 (Logo Fix) 📍</title>
+    <title>BluePin V13.13 (No Popups) 🤫</title>
     
     <link rel="icon" href="/logo.png">
     <link rel="apple-touch-icon" href="/logo.png">
@@ -22,17 +22,14 @@
         #splash-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 99999; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.8s ease-out; }
         #splash-logo { width: 60%; max-width: 250px; height: auto; }
 
-        /* ★ [긴급 수정] B-Pin 스타일 강화 */
+        /* B-Pin 스타일 */
         .custom-logo-pin {
-            background: transparent !important; /* 배경 투명 강제 적용 */
-            border: none !important;            /* 테두리 없음 강제 적용 */
-            box-shadow: none !important;        /* 박스 그림자 제거 */
-            /* 로고 모양에 맞춰 그림자 생성 */
+            background: transparent !important; 
+            border: none !important;            
+            box-shadow: none !important;        
             filter: drop-shadow(3px 4px 3px rgba(0,0,0,0.3)); 
-            /* ★ 핵심: 비율 유지하며 찌그러짐 방지 */
             object-fit: contain; 
         }
-        
         @keyframes pinDrop {
             0% { transform: translateY(-40px) scale(1); opacity: 0; }
             50% { transform: translateY(0) scale(1); opacity: 1; }
@@ -49,6 +46,13 @@
         .login-input { width: 100%; padding: 12px; margin: 5px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
         .hidden { display: none; }
         .link-text { color: #666; font-size: 13px; text-decoration: underline; cursor: pointer; margin-top: 10px; display: block; }
+
+        /* ★ [핵심] 비밀번호 가리기용 스타일 (브라우저 속이기) */
+        .secret-text {
+            -webkit-text-security: disc; /* 크롬, 사파리, 모바일에서 글자를 점으로 변경 */
+            -moz-text-security: disc;
+            text-security: disc;
+        }
 
         /* 마이페이지 스타일 */
         .mypage-header { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 15px; }
@@ -68,50 +72,23 @@
         .tier-title { font-weight: bold; font-size: 16px; }
         .tier-price { float: right; font-size: 14px; color: #666; }
 
-        /* 우측 메뉴바 (Compact) */
+        /* 우측 메뉴바 */
         #bottom-menu-bar { 
-            position: fixed; 
-            bottom: 30px; 
-            right: 15px; 
-            width: auto; 
-            background: white; 
-            border-radius: 50px; 
-            box-shadow: 0 5px 20px rgba(0,0,0,0.15); 
-            display: flex; 
-            gap: 5px;
-            padding: 5px 10px; 
-            z-index: 1500; 
+            position: fixed; bottom: 30px; right: 15px; width: auto; 
+            background: white; border-radius: 50px; box-shadow: 0 5px 20px rgba(0,0,0,0.15); 
+            display: flex; gap: 5px; padding: 5px 10px; z-index: 1500; 
         }
-        .menu-btn { 
-            padding: 10px 15px; 
-            border: none; 
-            background: transparent; 
-            font-size: 13px; 
-            font-weight: bold; 
-            color: #333; 
-            cursor: pointer; 
-            border-radius: 40px; 
-            transition: 0.2s; 
-            white-space: nowrap; 
-        }
+        .menu-btn { padding: 10px 15px; border: none; background: transparent; font-size: 13px; font-weight: bold; color: #333; cursor: pointer; border-radius: 40px; transition: 0.2s; white-space: nowrap; }
         .menu-btn:active { background: #f3f4f6; }
         
         #toast-msg { position: fixed; top: 80px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.7); color: white; padding: 10px 20px; border-radius: 30px; z-index: 3000; font-size: 14px; display: none; }
         
-        /* 손님 지갑 (왼쪽) */
+        /* 손님 지갑 */
         #guest-wallet { 
-            position: fixed; 
-            bottom: 30px; 
-            left: 20px; 
-            background: white; 
-            padding: 12px 20px;
-            border-radius: 50px; 
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3); 
-            z-index: 1500; 
-            display: none; 
-            align-items: center; 
-            gap: 8px; 
-            cursor: pointer; 
+            position: fixed; bottom: 30px; left: 20px; 
+            background: white; padding: 12px 20px; border-radius: 50px; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3); z-index: 1500; 
+            display: none; align-items: center; gap: 8px; cursor: pointer; 
         }
         .wallet-icon { font-size: 18px; } .wallet-amount { font-weight: bold; font-size: 16px; color: #4F46E5; }
         
@@ -155,16 +132,9 @@
         .ask-btn.selected { border-color: #4F46E5; background: #EEF2FF; color: #4F46E5; }
         .ask-price { font-size: 12px; color: #666; display: block; margin-top: 5px; }
 
-        /* 말풍선 스타일 */
         .leaflet-tooltip { display: none !important; border: 2px solid #333; border-radius: 8px; font-weight: bold; z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
         .map-zoomed-in .leaflet-tooltip { display: block !important; }
-        
-        /* 테두리 색상으로 핀의 종류 구분 */
-        .label-red { border-color: #EF4444; color: #EF4444; } 
-        .label-yellow { border-color: #F59E0B; color: #F59E0B; } 
-        .label-blue { border-color: #3B82F6; color: #3B82F6; } 
-        .label-white { background: white; border-color: #666; color: #333; } 
-        .label-green { border-color: #10B981; color: #10B981; background: white; }
+        .label-red { border-color: #EF4444; color: #EF4444; } .label-yellow { border-color: #F59E0B; color: #F59E0B; } .label-blue { border-color: #3B82F6; color: #3B82F6; } .label-white { background: white; border-color: #666; color: #333; } .label-green { border-color: #10B981; color: #10B981; background: white; }
     </style>
 </head>
 <body>
@@ -184,17 +154,17 @@
     <div id="login-overlay" class="modal-overlay">
         <div id="step-login" class="role-box">
             <h3 id="login-title">로그인</h3>
-            <input type="text" id="login-id" class="login-input" placeholder="아이디">
-            <input type="password" id="login-pw" class="login-input" placeholder="비밀번호">
+            <input type="text" id="login-id" class="login-input" placeholder="아이디" autocomplete="off">
+            <input type="text" id="login-pw" class="login-input secret-text" placeholder="비밀번호" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
             <button class="role-btn btn-host" onclick="doLogin()">로그인</button>
             <span class="link-text" onclick="showSignup()">아직 계정이 없으신가요? (회원가입)</span>
             <span class="link-text" onclick="closeLoginModal()">❌ 닫기</span>
         </div>
         <div id="step-signup" class="role-box hidden">
             <h3 id="signup-title">회원가입</h3>
-            <input type="text" id="sign-store" class="login-input hidden" placeholder="가게 이름 (예: 성수족발)">
-            <input type="text" id="sign-id" class="login-input" placeholder="아이디">
-            <input type="password" id="sign-pw" class="login-input" placeholder="비밀번호">
+            <input type="text" id="sign-store" class="login-input hidden" placeholder="가게 이름 (예: 성수족발)" autocomplete="off">
+            <input type="text" id="sign-id" class="login-input" placeholder="아이디" autocomplete="off">
+            <input type="text" id="sign-pw" class="login-input secret-text" placeholder="비밀번호" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
             <button class="role-btn btn-host" onclick="doSignup()">가입 완료</button>
             <span class="link-text" onclick="showLogin()">이미 계정이 있으신가요? (로그인)</span>
             <span class="link-text" onclick="closeLoginModal()">❌ 닫기</span>
@@ -306,12 +276,11 @@
         brandSound.preload = 'auto';
         const statusEl = document.getElementById('status-indicator');
         
-        // ★ [긴급 수정] 로고 비율 및 중심점 조정
         const bluePinIcon = L.icon({
             iconUrl: '/logo.png', 
-            iconSize: [36, 54],   // 가로 36, 세로 54 (길쭉한 비율)
-            iconAnchor: [18, 54], // X=중앙(18), Y=바닥(54)
-            popupAnchor: [0, -54], // 말풍선은 핀 머리 위로
+            iconSize: [36, 54],   
+            iconAnchor: [18, 54], 
+            popupAnchor: [0, -54], 
             className: 'custom-logo-pin pin-anim'
         });
 
@@ -424,7 +393,6 @@
             if (data.type === 'question') colorClass = 'label-white'; else if (data.type === 'answered') { colorClass = 'label-green'; displayText = "✅ 답변 도착!"; } else if (data.type === 'discount') colorClass = 'label-red'; else if (data.type === 'fresh') colorClass = 'label-yellow'; else colorClass = 'label-blue';
             
             const marker = L.marker([data.lat, data.lng], { icon: bluePinIcon }).addTo(map);
-            // ★ 수정됨: 말풍선 위치(offset)를 핀 크기에 맞춰 위로 조정
             marker.bindTooltip(`[${data.storeName || '가게'}]<br>${displayText} ${rewardBadge}`, { permanent: true, direction: 'top', className: `custom-label ${colorClass}`, offset: [0, -54] }).openTooltip();
             
             let popupContent = `<div style="text-align:center; position:relative;">`;
