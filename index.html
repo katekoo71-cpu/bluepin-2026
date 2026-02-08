@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>BluePin V13.8 (UI Compact) 🎨</title>
+    <title>BluePin V13.11 (Brand Identity) 📍</title>
     
     <link rel="icon" href="/logo.png">
     <link rel="apple-touch-icon" href="/logo.png">
@@ -22,6 +22,23 @@
         /* 스플래시 화면 */
         #splash-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 99999; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.8s ease-out; }
         #splash-logo { width: 60%; max-width: 250px; height: auto; }
+
+        /* ★ [B-Pin 스타일] 로고 그대로 사용 (배경 투명) */
+        .custom-logo-pin {
+            background: transparent; 
+            border: none;
+            /* 로고 모양에 딱 맞춰 떨어지는 그림자 (입체감 UP) */
+            filter: drop-shadow(3px 5px 2px rgba(0,0,0,0.3)); 
+        }
+        
+        /* 핀 꽂힐 때 퉁~ 튀는 애니메이션 */
+        @keyframes pinDrop {
+            0% { transform: translateY(-40px) scale(1); opacity: 0; }
+            50% { transform: translateY(0) scale(1); opacity: 1; }
+            70% { transform: translateY(-10px) scale(1); }
+            100% { transform: translateY(0) scale(1); }
+        }
+        .pin-anim { animation: pinDrop 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
 
         /* 모달 공통 */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 9000; display: none; align-items: center; justify-content: center; }
@@ -50,25 +67,25 @@
         .tier-title { font-weight: bold; font-size: 16px; }
         .tier-price { float: right; font-size: 14px; color: #666; }
 
-        /* ★ [핵심 수정] 우측 메뉴바 사이즈 축소 및 위치 이동 */
+        /* 우측 메뉴바 (Compact) */
         #bottom-menu-bar { 
             position: fixed; 
             bottom: 30px; 
-            right: 15px; /* 더 오른쪽으로 붙임 (20px -> 15px) */
+            right: 15px; 
             width: auto; 
             background: white; 
             border-radius: 50px; 
             box-shadow: 0 5px 20px rgba(0,0,0,0.15); 
             display: flex; 
-            gap: 5px; /* 버튼 사이 간격 줄임 */
-            padding: 5px 10px; /* 패딩 축소 */
+            gap: 5px;
+            padding: 5px 10px; 
             z-index: 1500; 
         }
         .menu-btn { 
-            padding: 10px 15px; /* 버튼 크기 축소 */
+            padding: 10px 15px; 
             border: none; 
             background: transparent; 
-            font-size: 13px; /* 글씨 크기 축소 */
+            font-size: 13px; 
             font-weight: bold; 
             color: #333; 
             cursor: pointer; 
@@ -86,7 +103,7 @@
             bottom: 30px; 
             left: 20px; 
             background: white; 
-            padding: 12px 20px; /* 지갑도 살짝 컴팩트하게 */
+            padding: 12px 20px;
             border-radius: 50px; 
             box-shadow: 0 4px 15px rgba(0,0,0,0.3); 
             z-index: 1500; 
@@ -137,9 +154,16 @@
         .ask-btn.selected { border-color: #4F46E5; background: #EEF2FF; color: #4F46E5; }
         .ask-price { font-size: 12px; color: #666; display: block; margin-top: 5px; }
 
+        /* 말풍선 스타일 */
         .leaflet-tooltip { display: none !important; border: 2px solid #333; border-radius: 8px; font-weight: bold; z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
         .map-zoomed-in .leaflet-tooltip { display: block !important; }
-        .label-red { border-color: #EF4444; color: #EF4444; } .label-yellow { border-color: #F59E0B; color: #F59E0B; } .label-blue { border-color: #3B82F6; color: #3B82F6; } .label-white { background: white; border-color: #666; color: #333; } .label-green { border-color: #10B981; color: #10B981; background: white; }
+        
+        /* 테두리 색상으로 핀의 종류 구분 (핀 자체는 B 로고로 통일) */
+        .label-red { border-color: #EF4444; color: #EF4444; } 
+        .label-yellow { border-color: #F59E0B; color: #F59E0B; } 
+        .label-blue { border-color: #3B82F6; color: #3B82F6; } 
+        .label-white { background: white; border-color: #666; color: #333; } 
+        .label-green { border-color: #10B981; color: #10B981; background: white; }
     </style>
 </head>
 <body>
@@ -284,6 +308,15 @@
         brandSound.preload = 'auto';
         const statusEl = document.getElementById('status-indicator');
         
+        // ★ [모든 핀 공통] B-Pin 로고 설정
+        const bluePinIcon = L.icon({
+            iconUrl: '/logo.png', // 깃허브의 logo.png 사용
+            iconSize: [45, 45],   // 사이즈
+            iconAnchor: [22.5, 45], // 뾰족한 끝이 좌표에 닿게
+            popupAnchor: [0, -45], 
+            className: 'custom-logo-pin pin-anim'
+        });
+
         window.onload = function() {
             setTimeout(() => { document.getElementById('splash-screen').style.opacity = '0'; setTimeout(() => { document.getElementById('splash-screen').style.display = 'none'; }, 800); }, 2000);
         };
@@ -390,10 +423,16 @@
             let colorClass = ''; let displayText = data.message; let rewardBadge = "";
             if (data.type === 'question' && data.reward) rewardBadge = `<span style="font-size:10px; background:#4F46E5; color:white; padding:2px 4px; border-radius:4px; margin-left:4px;">💰${data.reward}</span>`;
 
-            if (data.type === 'question') colorClass = 'label-white'; else if (data.type === 'answered') { colorClass = 'label-green'; displayText = "✅ 답변 도착!"; } else if (data.type === 'discount') colorClass = 'label-red'; else if (data.type === 'fresh') colorClass = 'label-yellow'; else colorClass = 'label-blue';
+            if (data.type === 'question') colorClass = 'label-white'; 
+            else if (data.type === 'answered') { colorClass = 'label-green'; displayText = "✅ 답변 도착!"; } 
+            else if (data.type === 'discount') colorClass = 'label-red'; 
+            else if (data.type === 'fresh') colorClass = 'label-yellow'; 
+            else colorClass = 'label-blue';
             
-            const marker = L.marker([data.lat, data.lng]).addTo(map);
-            marker.bindTooltip(`[${data.storeName || '가게'}]<br>${displayText} ${rewardBadge}`, { permanent: true, direction: 'top', className: `custom-label ${colorClass}`, offset: [0, -10] }).openTooltip();
+            // ★ [모든 핀 공통] 무조건 bluePinIcon 사용 (B-Pin)
+            const marker = L.marker([data.lat, data.lng], { icon: bluePinIcon }).addTo(map);
+
+            marker.bindTooltip(`[${data.storeName || '가게'}]<br>${displayText} ${rewardBadge}`, { permanent: true, direction: 'top', className: `custom-label ${colorClass}`, offset: [0, -45] }).openTooltip();
             
             let popupContent = `<div style="text-align:center; position:relative;">`;
             if (data.type === 'answered') {
