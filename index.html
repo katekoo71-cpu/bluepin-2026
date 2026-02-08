@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>BluePin V13.13 (No Popups) 🤫</title>
+    <title>BluePin V13.14 (Anti-AutoFill) 🛡️</title>
     
     <link rel="icon" href="/logo.png">
     <link rel="apple-touch-icon" href="/logo.png">
@@ -47,9 +47,9 @@
         .hidden { display: none; }
         .link-text { color: #666; font-size: 13px; text-decoration: underline; cursor: pointer; margin-top: 10px; display: block; }
 
-        /* ★ [핵심] 비밀번호 가리기용 스타일 (브라우저 속이기) */
+        /* ★ [핵심] 비밀번호 가리기 (브라우저 속이기) */
         .secret-text {
-            -webkit-text-security: disc; /* 크롬, 사파리, 모바일에서 글자를 점으로 변경 */
+            -webkit-text-security: disc; 
             -moz-text-security: disc;
             text-security: disc;
         }
@@ -72,24 +72,13 @@
         .tier-title { font-weight: bold; font-size: 16px; }
         .tier-price { float: right; font-size: 14px; color: #666; }
 
-        /* 우측 메뉴바 */
-        #bottom-menu-bar { 
-            position: fixed; bottom: 30px; right: 15px; width: auto; 
-            background: white; border-radius: 50px; box-shadow: 0 5px 20px rgba(0,0,0,0.15); 
-            display: flex; gap: 5px; padding: 5px 10px; z-index: 1500; 
-        }
+        #bottom-menu-bar { position: fixed; bottom: 30px; right: 15px; width: auto; background: white; border-radius: 50px; box-shadow: 0 5px 20px rgba(0,0,0,0.15); display: flex; gap: 5px; padding: 5px 10px; z-index: 1500; }
         .menu-btn { padding: 10px 15px; border: none; background: transparent; font-size: 13px; font-weight: bold; color: #333; cursor: pointer; border-radius: 40px; transition: 0.2s; white-space: nowrap; }
         .menu-btn:active { background: #f3f4f6; }
         
         #toast-msg { position: fixed; top: 80px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.7); color: white; padding: 10px 20px; border-radius: 30px; z-index: 3000; font-size: 14px; display: none; }
         
-        /* 손님 지갑 */
-        #guest-wallet { 
-            position: fixed; bottom: 30px; left: 20px; 
-            background: white; padding: 12px 20px; border-radius: 50px; 
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3); z-index: 1500; 
-            display: none; align-items: center; gap: 8px; cursor: pointer; 
-        }
+        #guest-wallet { position: fixed; bottom: 30px; left: 20px; background: white; padding: 12px 20px; border-radius: 50px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); z-index: 1500; display: none; align-items: center; gap: 8px; cursor: pointer; }
         .wallet-icon { font-size: 18px; } .wallet-amount { font-weight: bold; font-size: 16px; color: #4F46E5; }
         
         #flash-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #2563EB; z-index: 99999; display: none; align-items: center; justify-content: center; flex-direction: column; color: white; text-align: center; }
@@ -116,10 +105,7 @@
         .btn-red { background: #EF4444; } .btn-yellow { background: #F59E0B; } .btn-blue { background: #3B82F6; }
         
         #open-controls-btn { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #111; color: white; padding: 12px 24px; border-radius: 50px; font-weight: bold; border: none; z-index: 1500; display: none; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
-        
-        /* 물음표 버튼 */
         #guest-ask-btn { position: fixed; bottom: 90px; right: 20px; width: 50px; height: 50px; border-radius: 50%; background: white; color: #333; border: 2px solid #ddd; font-size: 24px; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.2); z-index: 1500; cursor: pointer; display: none; }
-        
         .delete-btn { width:100%; background:#EF4444; color:white; border:none; padding:8px; border-radius:5px; margin-top:5px; cursor:pointer; font-weight:bold; }
         .btn-camera { width:100%; background:#10B981; color:white; border:none; padding:12px; border-radius:8px; margin-top:5px; cursor:pointer; font-weight:bold; font-size:14px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
         .btn-text { width:100%; background:#3B82F6; color:white; border:none; padding:8px; border-radius:8px; margin-top:5px; cursor:pointer; font-weight:bold; font-size:12px; opacity: 0.9; }
@@ -155,7 +141,8 @@
         <div id="step-login" class="role-box">
             <h3 id="login-title">로그인</h3>
             <input type="text" id="login-id" class="login-input" placeholder="아이디" autocomplete="off">
-            <input type="text" id="login-pw" class="login-input secret-text" placeholder="비밀번호" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+            <input type="text" id="secret-code-1" class="login-input secret-text" placeholder="비밀번호" 
+                   autocomplete="new-password" readonly onfocus="this.removeAttribute('readonly');">
             <button class="role-btn btn-host" onclick="doLogin()">로그인</button>
             <span class="link-text" onclick="showSignup()">아직 계정이 없으신가요? (회원가입)</span>
             <span class="link-text" onclick="closeLoginModal()">❌ 닫기</span>
@@ -164,7 +151,8 @@
             <h3 id="signup-title">회원가입</h3>
             <input type="text" id="sign-store" class="login-input hidden" placeholder="가게 이름 (예: 성수족발)" autocomplete="off">
             <input type="text" id="sign-id" class="login-input" placeholder="아이디" autocomplete="off">
-            <input type="text" id="sign-pw" class="login-input secret-text" placeholder="비밀번호" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+            <input type="text" id="secret-code-2" class="login-input secret-text" placeholder="비밀번호" 
+                   autocomplete="new-password" readonly onfocus="this.removeAttribute('readonly');">
             <button class="role-btn btn-host" onclick="doSignup()">가입 완료</button>
             <span class="link-text" onclick="showLogin()">이미 계정이 있으신가요? (로그인)</span>
             <span class="link-text" onclick="closeLoginModal()">❌ 닫기</span>
@@ -365,8 +353,31 @@
         function showLogin() { document.getElementById('step-signup').classList.add('hidden'); document.getElementById('step-login').classList.remove('hidden'); }
         function showSignup() { document.getElementById('step-login').classList.add('hidden'); document.getElementById('step-signup').classList.remove('hidden'); }
 
-        async function doSignup() { triggerHaptic(); const id = document.getElementById('sign-id').value; const pw = document.getElementById('sign-pw').value; const store = document.getElementById('sign-store').value; if(!id || !pw) return alert("입력해주세요"); const res = await fetch('/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: id, password: pw, role: selectedRole, storeName: store }) }); const data = await res.json(); if(data.success) { alert(data.message); showLogin(); } else { alert(data.message); } }
-        async function doLogin() { triggerHaptic(); const id = document.getElementById('login-id').value; const pw = document.getElementById('login-pw').value; const res = await fetch('/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: id, password: pw }) }); const data = await res.json(); if(data.success) { myRole = data.role; myUsername = id; myStoreName = data.storeName; myTier = data.tier; document.getElementById('login-overlay').style.display = 'none'; document.getElementById('menu-before-login').style.display = 'none'; document.getElementById('menu-after-login').style.display = 'flex'; if (myRole === 'host') { document.getElementById('current-store-name').innerText = data.storeName; document.getElementById('open-controls-btn').style.display = 'block'; document.getElementById('crosshair').style.display = 'block'; toggleProMode(); } else { document.getElementById('guest-wallet').style.display = 'flex'; document.getElementById('my-points').innerText = data.points + " BP"; document.getElementById('guest-ask-btn').style.display = 'block'; document.getElementById('crosshair').style.display = 'none'; alert(`환영합니다! 현재 포인트: ${data.points} BP`); } if (navigator.geolocation) navigator.geolocation.getCurrentPosition(pos => { map.setView([pos.coords.latitude, pos.coords.longitude], 18); }); setTimeout(() => map.invalidateSize(), 100); } else { alert(data.message); } }
+        async function doSignup() { 
+            triggerHaptic(); 
+            const id = document.getElementById('sign-id').value; 
+            // ★ 수정됨: 바뀐 ID로 값 가져오기
+            const pw = document.getElementById('secret-code-2').value; 
+            const store = document.getElementById('sign-store').value; 
+            if(!id || !pw) return alert("입력해주세요"); 
+            const res = await fetch('/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: id, password: pw, role: selectedRole, storeName: store }) }); 
+            const data = await res.json(); if(data.success) { alert(data.message); showLogin(); } else { alert(data.message); } 
+        }
+        
+        async function doLogin() { 
+            triggerHaptic(); 
+            const id = document.getElementById('login-id').value; 
+            // ★ 수정됨: 바뀐 ID로 값 가져오기
+            const pw = document.getElementById('secret-code-1').value; 
+            const res = await fetch('/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: id, password: pw }) }); 
+            const data = await res.json(); 
+            if(data.success) { 
+                myRole = data.role; myUsername = id; myStoreName = data.storeName; myTier = data.tier; document.getElementById('login-overlay').style.display = 'none'; document.getElementById('menu-before-login').style.display = 'none'; document.getElementById('menu-after-login').style.display = 'flex'; 
+                if (myRole === 'host') { document.getElementById('current-store-name').innerText = data.storeName; document.getElementById('open-controls-btn').style.display = 'block'; document.getElementById('crosshair').style.display = 'block'; toggleProMode(); } 
+                else { document.getElementById('guest-wallet').style.display = 'flex'; document.getElementById('my-points').innerText = data.points + " BP"; document.getElementById('guest-ask-btn').style.display = 'block'; document.getElementById('crosshair').style.display = 'none'; alert(`환영합니다! 현재 포인트: ${data.points} BP`); } 
+                if (navigator.geolocation) navigator.geolocation.getCurrentPosition(pos => { map.setView([pos.coords.latitude, pos.coords.longitude], 18); }); setTimeout(() => map.invalidateSize(), 100); 
+            } else { alert(data.message); } 
+        }
 
         async function startFlash() { triggerHaptic(); if(!confirm("1000 BP를 사용하여 혜택을 받으시겠습니까?")) return; playBrandSound(); const overlay = document.getElementById('flash-overlay'); overlay.style.display = 'flex'; overlay.classList.add('flashing'); try { const res = await fetch('/use-point', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: myUsername }) }); const data = await res.json(); if (data.success) { document.getElementById('my-points').innerText = data.newPoints + " BP"; } else { alert("❌ " + data.message); stopFlash(); } } catch(e) { alert("통신 오류!"); stopFlash(); } }
         function stopFlash() { const overlay = document.getElementById('flash-overlay'); overlay.style.display = 'none'; overlay.classList.remove('flashing'); }
