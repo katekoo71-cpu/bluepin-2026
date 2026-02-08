@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>BluePin V13.3 (Final Fix) 🎵</title>
+    <title>BluePin V13.5 (Economy) 💰</title>
     
     <link rel="icon" href="/logo.png">
     <link rel="apple-touch-icon" href="/logo.png">
@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     
     <style>
-        /* --- 기본 스타일 --- */
+        /* --- 스타일 --- */
         body { margin: 0; padding: 0; font-family: 'Pretendard', sans-serif; overflow: hidden; background: #f5f5f5; }
         #map { width: 100%; height: 100vh; z-index: 1; background: #ddd; }
         .crosshair-cursor { cursor: crosshair !important; }
@@ -20,57 +20,42 @@
         #status-indicator { position: fixed; top: 10px; right: 10px; padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; z-index: 2000; background: #EF4444; color: white; transition: background 0.3s; }
         
         /* 스플래시 화면 */
-        #splash-screen {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: white; z-index: 99999;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            transition: opacity 0.8s ease-out;
-        }
+        #splash-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 99999; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.8s ease-out; }
         #splash-logo { width: 60%; max-width: 250px; height: auto; }
 
-        /* 로그인 모달 */
-        #login-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 9000; display: none; align-items: center; justify-content: center; }
-        .role-box { background: white; padding: 30px; border-radius: 20px; text-align: center; width: 85%; max-width: 320px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
+        /* 모달 공통 */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 9000; display: none; align-items: center; justify-content: center; }
+        .role-box { background: white; padding: 25px; border-radius: 20px; text-align: center; width: 85%; max-width: 320px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
         .role-btn { display: block; width: 100%; padding: 15px; margin: 10px 0; border: none; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.2s; }
         .btn-guest { background: #EEF2FF; color: #4F46E5; } .btn-host { background: #4F46E5; color: white; }
         .login-input { width: 100%; padding: 12px; margin: 5px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
         .hidden { display: none; }
         .link-text { color: #666; font-size: 13px; text-decoration: underline; cursor: pointer; margin-top: 10px; display: block; }
         
-        /* 하단 메뉴바 */
-        #bottom-menu-bar {
-            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
-            width: 90%; max-width: 400px;
-            background: white; border-radius: 50px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.15);
-            display: flex; justify-content: space-between; padding: 5px;
-            z-index: 1500;
-        }
-        .menu-btn {
-            flex: 1; padding: 12px; border: none; background: transparent;
-            font-size: 14px; font-weight: bold; color: #333; cursor: pointer;
-            border-radius: 40px; transition: 0.2s;
-        }
+        /* 질문 유형 선택 모달 (NEW) */
+        .ask-option { display: flex; gap: 10px; margin-top: 15px; }
+        .ask-btn { flex: 1; padding: 15px 5px; border-radius: 12px; border: 2px solid #ddd; background: white; cursor: pointer; }
+        .ask-btn.selected { border-color: #4F46E5; background: #EEF2FF; color: #4F46E5; }
+        .ask-price { font-size: 12px; color: #666; display: block; margin-top: 5px; }
+
+        #bottom-menu-bar { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); width: 90%; max-width: 400px; background: white; border-radius: 50px; box-shadow: 0 5px 20px rgba(0,0,0,0.15); display: flex; justify-content: space-between; padding: 5px; z-index: 1500; }
+        .menu-btn { flex: 1; padding: 12px; border: none; background: transparent; font-size: 14px; font-weight: bold; color: #333; cursor: pointer; border-radius: 40px; transition: 0.2s; }
         .menu-btn:active { background: #f3f4f6; }
         
         #toast-msg { position: fixed; top: 80px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.7); color: white; padding: 10px 20px; border-radius: 30px; z-index: 3000; font-size: 14px; display: none; }
         
-        /* 손님 지갑 */
         #guest-wallet { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: white; padding: 15px 25px; border-radius: 50px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); z-index: 1500; display: none; display: flex; align-items: center; gap: 10px; cursor: pointer; }
         .wallet-icon { font-size: 20px; } .wallet-amount { font-weight: bold; font-size: 18px; color: #4F46E5; }
         
-        /* Sound Pay 플래시 */
         #flash-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #2563EB; z-index: 99999; display: none; align-items: center; justify-content: center; flex-direction: column; color: white; text-align: center; }
         @keyframes flashEffect { 0% { opacity: 1; background: #2563EB; } 50% { opacity: 0.3; background: #60A5FA; } 100% { opacity: 1; background: #2563EB; } }
         .flashing { animation: flashEffect 0.3s infinite; }
         
-        /* 십자선 (질문 모드) */
         #crosshair { position: fixed; top: 50%; left: 50%; width: 40px; height: 40px; transform: translate(-50%, -50%); z-index: 1000; pointer-events: none; display: none; }
         #crosshair::before, #crosshair::after { content: ''; position: absolute; background: #EF4444; box-shadow: 0 0 4px white; border-radius: 2px; }
         #crosshair::before { top: 18px; left: 0; width: 40px; height: 4px; }
         #crosshair::after { top: 0; left: 18px; width: 4px; height: 40px; }
         
-        /* 사장님 컨트롤 패널 */
         #host-controls { position: fixed; bottom: -500px; left: 0; width: 100%; background: white; border-radius: 20px 20px 0 0; padding: 20px; z-index: 2000; transition: bottom 0.3s; padding-bottom: 40px; box-sizing: border-box; box-shadow: 0 -5px 20px rgba(0,0,0,0.1); }
         #host-controls.active { bottom: 0; }
         .pro-toggle-area { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding: 10px; background: #F3F4F6; border-radius: 10px; border: 1px solid #E5E7EB; }
@@ -85,20 +70,9 @@
         .action-btn { padding: 12px 2px; border: none; border-radius: 12px; font-size: 13px; font-weight: bold; color: white; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 5px; word-break: keep-all; }
         .btn-red { background: #EF4444; } .btn-yellow { background: #F59E0B; } .btn-blue { background: #3B82F6; }
         
-        /* 알림 버튼들 */
         #open-controls-btn { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #111; color: white; padding: 12px 24px; border-radius: 50px; font-weight: bold; border: none; z-index: 1500; display: none; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
         
-        /* ★ [복구 완료] 물음표 버튼 스타일 */
-        #guest-ask-btn { 
-            position: fixed; bottom: 90px; right: 20px; 
-            width: 50px; height: 50px; border-radius: 50%; 
-            background: white; color: #333; border: 2px solid #ddd; 
-            font-size: 24px; font-weight: bold; 
-            box-shadow: 0 4px 10px rgba(0,0,0,0.2); 
-            z-index: 1500; 
-            cursor: pointer; 
-            display: none; /* 기본은 숨김, 손님 로그인 시 JS로 보임 */
-        }
+        #guest-ask-btn { position: fixed; bottom: 90px; right: 20px; width: 50px; height: 50px; border-radius: 50%; background: white; color: #333; border: 2px solid #ddd; font-size: 24px; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.2); z-index: 1500; cursor: pointer; display: none; }
 
         .delete-btn { width:100%; background:#EF4444; color:white; border:none; padding:8px; border-radius:5px; margin-top:5px; cursor:pointer; font-weight:bold; }
         .btn-camera { width:100%; background:#10B981; color:white; border:none; padding:12px; border-radius:8px; margin-top:5px; cursor:pointer; font-weight:bold; font-size:14px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
@@ -109,12 +83,10 @@
         .leaflet-tooltip { display: none !important; border: 2px solid #333; border-radius: 8px; font-weight: bold; z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
         .map-zoomed-in .leaflet-tooltip { display: block !important; }
         
-        /* 핀 색상 스타일 */
         .label-red { border-color: #EF4444; color: #EF4444; } 
         .label-yellow { border-color: #F59E0B; color: #F59E0B; } 
         .label-blue { border-color: #3B82F6; color: #3B82F6; }
         .label-white { background: white; border-color: #666; color: #333; }
-        /* 답변 완료(초록색) 핀 스타일 */
         .label-green { border-color: #10B981; color: #10B981; background: white; }
     </style>
 </head>
@@ -123,9 +95,7 @@
     <div id="crosshair"></div>
     <div id="toast-msg">원하는 위치를 클릭해서 질문을 남기세요! 👇</div>
     
-    <div id="splash-screen">
-        <img id="splash-logo" src="/main_logo.png" alt="BluePin Main Logo">
-    </div>
+    <div id="splash-screen"><img id="splash-logo" src="/main_logo.png" alt="BluePin Main Logo"></div>
 
     <div id="flash-overlay" onclick="stopFlash()">
         <h1 style="font-size:40px; font-weight:900;">BLUEPIN<br>PAY</h1>
@@ -135,7 +105,7 @@
     
     <input type="file" id="camera-input" accept="image/*" capture="environment" style="display:none;" onchange="handlePhotoUpload(this)">
 
-    <div id="login-overlay">
+    <div id="login-overlay" class="modal-overlay">
         <div id="step-login" class="role-box">
             <h3 id="login-title">로그인</h3>
             <input type="text" id="login-id" class="login-input" placeholder="아이디">
@@ -155,6 +125,25 @@
         </div>
     </div>
     
+    <div id="ask-modal" class="modal-overlay">
+        <div class="role-box">
+            <h3>질문 등록하기</h3>
+            <input type="text" id="ask-input" class="login-input" placeholder="예: 지금 웨이팅 있나요?">
+            <div class="ask-option">
+                <button class="ask-btn selected" onclick="selectAskType('text')" id="btn-ask-text">
+                    💬 텍스트<br>
+                    <span class="ask-price">-100 BP</span>
+                </button>
+                <button class="ask-btn" onclick="selectAskType('photo')" id="btn-ask-photo">
+                    📸 사진<br>
+                    <span class="ask-price">-500 BP</span>
+                </button>
+            </div>
+            <button class="role-btn btn-host" onclick="submitAsk()">등록하기</button>
+            <span class="link-text" onclick="closeAskModal()">취소</span>
+        </div>
+    </div>
+
     <div id="map"></div>
     
     <div id="bottom-menu-bar">
@@ -163,7 +152,6 @@
     </div>
 
     <button id="open-controls-btn" onclick="toggleControls()">📣 여기 알리기</button>
-    
     <button id="guest-ask-btn" onclick="enableAskMode()">❓</button>
 
     <div id="guest-wallet" style="display:none;" onclick="startFlash()">
@@ -197,14 +185,14 @@
         let socket;
         let myRole = ""; let selectedRole = ""; let myUsername = ""; let myStoreName = "";
         let markers = {}; let isAskMode = false; let targetPinId = null; 
+        
+        // 질문 등록용 변수
+        let tempAskLat = 0; let tempAskLng = 0; let selectedAskType = 'text';
 
-        // Sound Pay 오디오 미리 로딩
         const brandSound = new Audio('/brand_sound.mp3');
         brandSound.preload = 'auto';
-
         const statusEl = document.getElementById('status-indicator');
         
-        // 스플래시 화면 
         window.onload = function() {
             setTimeout(() => {
                 const splash = document.getElementById('splash-screen');
@@ -214,11 +202,7 @@
         };
 
         function playBrandSound() {
-            try {
-                brandSound.volume = 1.0;
-                brandSound.currentTime = 0;
-                brandSound.play().catch(e => console.log("Audio play failed (Autoplay policy):", e));
-            } catch (e) { console.log("Audio file error"); }
+            try { brandSound.volume = 1.0; brandSound.currentTime = 0; brandSound.play().catch(e => console.log(e)); } catch (e) {}
         }
 
         function triggerHaptic() { if (navigator.vibrate) navigator.vibrate(50); }
@@ -227,20 +211,28 @@
             socket = io();
             socket.on('connect', () => { statusEl.innerText = "🟢 실시간 연결됨"; statusEl.style.background = "#10B981"; });
             socket.on('disconnect', () => { statusEl.innerText = "🔴 연결 끊김"; statusEl.style.background = "#EF4444"; });
-            
             socket.on('loadPins', (pins) => { pins.forEach(pin => addMarkerToMap(pin)); });
             socket.on('newSignal', (data) => { addMarkerToMap(data); });
             socket.on('removePin', (id) => { if (markers[id]) { map.removeLayer(markers[id]); delete markers[id]; } });
-
-            // 답변 완료 이벤트 수신 (초록 핀으로 교체)
+            
+            // 답변 완료 알림
             socket.on('pinAnswered', (data) => {
                 if (markers[data.pinId]) { map.removeLayer(markers[data.pinId]); delete markers[data.pinId]; }
                 addMarkerToMap(data.updatedPin);
                 if (data.asker === myUsername) {
                     playBrandSound(); 
-                    alert("💌 질문에 대한 답변이 도착했습니다!\n지도에서 초록색 핀을 확인하세요.");
+                    alert("💌 답변 도착! (+포인트 지급됨)");
                 }
             });
+
+            // 내 포인트 갱신 (질문 등록 후 차감 확인용)
+            socket.on('pointUpdated', (newPoint) => {
+                document.getElementById('my-points').innerText = newPoint + " BP";
+            });
+            
+            // 에러 메시지 (포인트 부족 등)
+            socket.on('errorMsg', (msg) => { alert("❌ " + msg); });
+
         } catch (e) { statusEl.innerText = "⚠️ 오류"; }
 
         let map = L.map('map').setView([37.5445, 127.0560], 16);
@@ -250,16 +242,45 @@
 
         map.on('click', function(e) {
             if (isAskMode) {
-                triggerHaptic(); 
-                const text = prompt("여기에 무엇이 궁금한가요? (예: 여기 웨이팅 어때?)");
-                if (text) {
-                    const data = { lat: e.latlng.lat, lng: e.latlng.lng, type: 'question', message: text, storeName: "❓궁금해요", username: myUsername, time: Date.now() };
-                    socket.emit('bossSignal', data);
-                }
-                isAskMode = false; document.getElementById('map').classList.remove('crosshair-cursor'); document.getElementById('toast-msg').style.display = 'none';
+                triggerHaptic();
+                // 위치 저장 후 모달 띄우기
+                tempAskLat = e.latlng.lat;
+                tempAskLng = e.latlng.lng;
+                document.getElementById('ask-modal').style.display = 'flex';
+                
+                // 모드 해제
+                isAskMode = false; 
+                document.getElementById('map').classList.remove('crosshair-cursor'); 
+                document.getElementById('toast-msg').style.display = 'none';
             }
         });
 
+        // 질문 모달 관련 함수
+        function selectAskType(type) {
+            selectedAskType = type;
+            document.getElementById('btn-ask-text').classList.remove('selected');
+            document.getElementById('btn-ask-photo').classList.remove('selected');
+            document.getElementById('btn-ask-' + type).classList.add('selected');
+        }
+        function closeAskModal() { document.getElementById('ask-modal').style.display = 'none'; }
+        function submitAsk() {
+            const text = document.getElementById('ask-input').value;
+            if (!text) return alert("질문 내용을 입력해주세요.");
+            
+            const data = { 
+                lat: tempAskLat, lng: tempAskLng, 
+                type: 'question', message: text, 
+                storeName: "❓궁금해요", username: myUsername, 
+                rewardType: selectedAskType, // ★ 중요: 텍스트냐 사진이냐
+                time: Date.now() 
+            };
+            socket.emit('bossSignal', data);
+            
+            document.getElementById('ask-input').value = '';
+            closeAskModal();
+        }
+
+        // 로그인 등 기존 함수들
         function openLoginModal(role) {
             triggerHaptic(); selectedRole = role;
             document.getElementById('login-overlay').style.display = 'flex';
@@ -303,8 +324,6 @@
                     toggleProMode();
                 } else {
                     document.getElementById('guest-wallet').style.display = 'flex'; document.getElementById('my-points').innerText = data.points + " BP";
-                    
-                    // ★ [중요] 손님 로그인 시 물음표 버튼 보이게 하기
                     document.getElementById('guest-ask-btn').style.display = 'block'; 
                     document.getElementById('crosshair').style.display = 'none';
                     alert(`환영합니다! 현재 포인트: ${data.points} BP`);
@@ -348,7 +367,10 @@
                     const photoBase64 = e.target.result;
                     const res = await fetch('/answer-mission', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: myUsername, pinId: targetPinId, photo: photoBase64 }) });
                     const data = await res.json();
-                    if(data.success) { alert("✅ 사진 인증 성공!\n💰 +500 BP 획득!"); document.getElementById('my-points').innerText = data.newPoints + " BP"; } else { alert("오류: " + data.message); }
+                    if(data.success) { 
+                        alert("✅ 사진 인증 성공!\n💰 +500 BP 획득!"); 
+                        document.getElementById('my-points').innerText = data.newPoints + " BP"; 
+                    } else { alert("오류: " + data.message); }
                 }; reader.readAsDataURL(file);
             }
         }
@@ -358,7 +380,10 @@
             if(answer) {
                 const res = await fetch('/answer-mission', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: myUsername, pinId: pinId, answerText: answer }) });
                 const data = await res.json();
-                if(data.success) { alert("✅ 제보 성공!\n💰 +100 BP 획득!"); document.getElementById('my-points').innerText = data.newPoints + " BP"; } else { alert("오류: " + data.message); }
+                if(data.success) { 
+                    alert("✅ 제보 성공!\n💰 +100 BP 획득!"); 
+                    document.getElementById('my-points').innerText = data.newPoints + " BP"; 
+                } else { alert("오류: " + data.message); }
             }
         }
 
@@ -397,11 +422,10 @@
             socket.emit('bossSignal', data); document.getElementById('promo-text').value = ''; toggleControls();
         }
 
-        // 핀 생성 및 자동 삭제 로직
         function addMarkerToMap(data) {
             const createdTime = new Date(data.createdAt || data.time).getTime(); 
             let duration = 30 * 60 * 1000; 
-            if (data.type === 'answered') { duration = 10 * 60 * 1000; } // 답변 핀은 10분
+            if (data.type === 'answered') { duration = 10 * 60 * 1000; } 
 
             const timeLeft = duration - (Date.now() - createdTime);
             if (timeLeft <= 0) return; 
@@ -409,13 +433,19 @@
             let colorClass = ''; 
             let displayText = data.message;
 
+            // ★ 현상금(Reward) 표시
+            let rewardBadge = "";
+            if (data.type === 'question' && data.reward) {
+                rewardBadge = `<span style="font-size:10px; background:#4F46E5; color:white; padding:2px 4px; border-radius:4px; margin-left:4px;">💰${data.reward}</span>`;
+            }
+
             if (data.type === 'question') { colorClass = 'label-white'; } 
             else if (data.type === 'answered') { colorClass = 'label-green'; displayText = "✅ 답변 도착!"; } 
             else if (data.type === 'discount') colorClass = 'label-red'; 
             else if (data.type === 'fresh') colorClass = 'label-yellow'; 
             else colorClass = 'label-blue';
             
-            const displayMsg = `[${data.storeName || '가게'}]<br>${displayText}`;
+            const displayMsg = `[${data.storeName || '가게'}]<br>${displayText} ${rewardBadge}`;
             const marker = L.marker([data.lat, data.lng]).addTo(map);
             marker.bindTooltip(displayMsg, { permanent: true, direction: 'top', className: `custom-label ${colorClass}`, offset: [0, -10] }).openTooltip();
             
@@ -440,8 +470,10 @@
                 popupContent += `<button class="delete-btn" onclick="deletePin('${data._id}')">🗑 삭제하기</button>`; 
             }
             if (myRole === 'guest' && data.type === 'question' && data.username !== myUsername) {
-                popupContent += `<button class="btn-text" onclick="answerWithText('${data._id}')">✍️ 텍스트로 제보 (+100 BP)</button>`;
-                popupContent += `<button class="btn-camera" onclick="triggerCamera('${data._id}')">📸 사진으로 인증 (+500 BP)</button>`;
+                // ★ 답변 버튼에 현상금 표시
+                const reward = data.reward || 100;
+                popupContent += `<button class="btn-text" onclick="answerWithText('${data._id}')">✍️ 텍스트로 제보 (+${reward} BP)</button>`;
+                popupContent += `<button class="btn-camera" onclick="triggerCamera('${data._id}')">📸 사진으로 인증 (+${reward} BP)</button>`;
             }
             popupContent += `</div>`;
             
