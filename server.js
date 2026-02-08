@@ -1,4 +1,4 @@
-// server.js (테스트 모드: DB 없이 즉시 실행)
+// server.js (V13.5 - 경제 시스템 적용)
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
@@ -9,52 +9,43 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
 
-// 1. 미들웨어 설정
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
-app.use(express.static(__dirname)); // 현재 폴더에서 화면 파일 찾기
+app.use(express.static(__dirname));
 
-// ★ [핵심] DB 대신 임시로 저장할 변수들 (서버 꺼지면 초기화됨)
+// 임시 데이터 저장소 (서버 재시작 시 초기화)
 let pins = [];
 let users = [];
 
-// 2. API 라우트
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
-});
+app.get('/', (req, res) => { res.sendFile(path.join(__dirname, 'index.html')); });
 
-// 회원가입 (메모리에 저장)
+// 회원가입 (축하금 1000 BP)
 app.post('/register', (req, res) => {
     const { username, password, role, storeName } = req.body;
-    // 중복 체크
     const existing = users.find(u => u.username === username);
     if (existing) return res.json({ success: false, message: "이미 있는 ID입니다." });
 
     const newUser = {
-        username, 
-        password, 
-        role, 
+        username, password, role, 
         storeName: role === 'host' ? storeName : null,
-        points: role === 'guest' ? 1000 : 0
+        points: role === 'guest' ? 1000 : 0 // ★ 가입 축하금
     };
-    users.push(newUser); // 배열에 추가
-    console.log("✅ 가입 완료:", newUser);
-    res.json({ success: true, message: "가입 성공 (테스트 모드)" });
+    users.push(newUser);
+    res.json({ success: true, message: "가입 성공! (+1000 BP 지급)" });
 });
 
 // 로그인
 app.post('/login', (req, res) => {
     const { username, password } = req.body;
     const user = users.find(u => u.username === username && u.password === password);
-    
     if (user) {
         res.json({ success: true, role: user.role, storeName: user.storeName, points: user.points });
     } else {
-        res.json({ success: false, message: "ID 또는 비번 틀림 (테스트 계정인지 확인하세요)" });
+        res.json({ success: false, message: "ID 또는 비번 틀림" });
     }
 });
 
-// 포인트 사용
+// Sound Pay (1000 BP 차감)
 app.post('/use-point', (req, res) => {
     const { username } = req.body;
     const user = users.find(u => u.username === username);
@@ -62,76 +53,92 @@ app.post('/use-point', (req, res) => {
         user.points -= 1000;
         res.json({ success: true, newPoints: user.points });
     } else {
-        res.json({ success: false, message: "포인트 부족" });
+        res.json({ success: false, message: "포인트 부족!" });
     }
 });
 
-// 미션 답변
+// ★ [핵심] 답변하고 보상 받기
 app.post('/answer-mission', (req, res) => {
     const { username, pinId, answerText, photo } = req.body;
     const user = users.find(u => u.username === username);
     
-    // 포인트 지급
-    let reward = photo ? 500 : 100;
-    if (user) user.points += reward;
-
-    // 핀 찾아서 업데이트
+    // 핀 찾기
     const pin = pins.find(p => p.id === pinId);
-    if (pin) {
+    
+    if (pin && user) {
+        // ★ 질문자가 걸어둔 현상금(reward) 만큼 획득
+        const reward = pin.reward || 100; // 기본 100
+        user.points += reward;
+
         pin.type = 'answered';
         pin.answerText = answerText;
         pin.answerPhoto = photo;
         pin.answerBy = username;
-        pin.createdAt = Date.now(); // 시간 초기화 (10분 연장)
+        pin.createdAt = Date.now(); // 10분 연장
         
-        // 모두에게 알림
         io.emit('pinAnswered', { pinId: pin.id, updatedPin: pin, asker: pin.username });
+        
+        res.json({ success: true, newPoints: user.points, message: `답변 등록 완료! +${reward} BP` });
+    } else {
+        res.json({ success: false, message: "핀을 찾을 수 없습니다." });
     }
-    
-    res.json({ success: true, newPoints: user ? user.points : 0 });
 });
 
-// 3. 소켓 통신 (실시간 핀 관리)
+// 소켓 통신
 io.on('connection', (socket) => {
     console.log('✅ User connected');
 
-    // 접속 시 최근 30분 내 핀만 보내주기
+    // 핀 로딩 (답변된건 10분, 일반은 30분)
     const now = Date.now();
     const activePins = pins.filter(p => {
-        // 답변 핀은 10분, 일반 핀은 30분
         const duration = p.type === 'answered' ? 10 * 60000 : 30 * 60000;
         return (now - p.createdAt) < duration;
     });
     socket.emit('loadPins', activePins);
 
-    // 새 핀 생성
+    // ★ [핵심] 질문 핀 생성 (포인트 차감 로직)
     socket.on('bossSignal', (data) => {
-        // ID와 시간을 서버에서 부여
-        const newPin = { 
-            ...data, 
-            id: Date.now().toString(), // 임시 ID 생성
-            _id: Date.now().toString(), // 클라이언트 호환용
-            createdAt: Date.now() 
-        };
-        pins.push(newPin);
-        io.emit('newSignal', newPin);
+        const user = users.find(u => u.username === data.username);
+        
+        // 질문 타입에 따른 비용 계산
+        let cost = 0;
+        if (data.rewardType === 'text') cost = 100;
+        if (data.rewardType === 'photo') cost = 500;
+
+        if (user) {
+            if (user.points >= cost) {
+                user.points -= cost; // 포인트 차감
+                
+                const newPin = { 
+                    ...data, 
+                    id: Date.now().toString(), 
+                    _id: Date.now().toString(), 
+                    createdAt: Date.now(),
+                    reward: cost // ★ 핀에 현상금 금액 기록
+                };
+                pins.push(newPin);
+                
+                io.emit('newSignal', newPin); // 지도에 핀 생성
+                
+                // 나한테만 포인트 업데이트 알림 (잔액 갱신용)
+                socket.emit('pointUpdated', user.points);
+            } else {
+                // 포인트 부족 시 에러 전송
+                socket.emit('errorMsg', "포인트가 부족합니다!");
+            }
+        }
     });
 
-    // 핀 삭제
     socket.on('deletePin', (pinId) => {
         pins = pins.filter(p => p.id !== pinId && p._id !== pinId);
         io.emit('removePin', pinId);
     });
     
-    // 신고
     socket.on('reportPin', (pinId) => {
         pins = pins.filter(p => p.id !== pinId && p._id !== pinId);
         io.emit('removePin', pinId);
     });
 });
 
-// 서버 시작
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-    console.log(`🚀 BluePin TEST Server running on port ${PORT}`);
-});
+server.listen(PORT, () => { console.log(`🚀 BluePin V13.5 Server running on port ${PORT}`); });
