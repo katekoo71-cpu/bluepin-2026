@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>BluePin V12.4 🎵</title>
+    <title>BluePin V12.5 🎵</title>
     
     <link rel="icon" href="/logo.png">
     <link rel="apple-touch-icon" href="/logo.png">
@@ -173,7 +173,7 @@
 
         const statusEl = document.getElementById('status-indicator');
         
-        // 스플래시 화면 2.5초 후 제거
+        // 스플래시 화면
         window.onload = function() {
             setTimeout(() => {
                 const splash = document.getElementById('splash-screen');
@@ -182,33 +182,43 @@
             }, 2000);
         };
 
-        // ★ [Audio Tuning V12.4] 10대~20대 여성의 밝고 높은 톤
+        // ★ [Audio Tuning V12.5] Idol CM Style: "Blue~ Pin!"
         function playBrandSound() {
             if ('speechSynthesis' in window) {
                 window.speechSynthesis.cancel();
                 
-                // "BluePin!" (느낌표로 억양 강조)
-                const msg = new SpeechSynthesisUtterance("BluePin!");
-                msg.lang = 'en-US'; 
+                // 1. Text Tuning: "Blue, Pin!" (쉼표로 약간의 리듬감 부여)
+                // "Blue... Pin!" 보다 쉼표가 더 자연스럽게 텀을 줌
+                const msg = new SpeechSynthesisUtterance("Blue, Pin!");
                 
-                // ★ 핵심 튜닝: 피치를 대폭 높여서 젊은 느낌 + 속도감
-                msg.rate = 1.3;     // 1.2보다 살짝 빠르게
-                msg.pitch = 1.6;    // 1.4보다 더 높게 (High-Teen 감성)
-                msg.volume = 1.0;
-                
-                // 여성 목소리 찾기 (Google US English, Samantha 등)
+                // 2. Voice Priority: Korean voice often sounds cuter/higher
+                // 한국어 억양의 "블루핀!"이 리듬감이 더 좋음
+                let targetVoice = null;
                 const voices = window.speechSynthesis.getVoices();
-                const targetVoice = voices.find(v => v.name.includes('Google US English')) 
-                                 || voices.find(v => v.name.includes('Samantha'))
-                                 || voices.find(v => v.name.includes('Female'))
-                                 || voices.find(v => v.lang.includes('en-US'));
+                
+                // 한국어 여성 목소리 우선 찾기
+                targetVoice = voices.find(v => v.lang === 'ko-KR' && v.name.includes('Google'));
+                if (!targetVoice) targetVoice = voices.find(v => v.lang === 'ko-KR');
+                
+                // 없으면 영어 여성 목소리
+                if (!targetVoice) targetVoice = voices.find(v => v.name.includes('Samantha'));
+                
+                if (targetVoice) {
+                    msg.voice = targetVoice;
+                    // 한국어일 경우 텍스트를 한글로
+                    if(targetVoice.lang.includes('ko')) msg.text = "블루, 핀!";
+                } else {
+                    msg.lang = 'en-US'; // fallback
+                }
 
-                if (targetVoice) msg.voice = targetVoice;
+                // 3. Idol Pitch & Speed
+                msg.rate = 1.1;     // 살짝 여유있게 (리듬 타기 위해)
+                msg.pitch = 1.7;    // 초고음 (10대 아이돌 톤)
+                msg.volume = 1.0;
 
                 window.speechSynthesis.speak(msg);
             }
         }
-        // 목소리 리스트 미리 로드
         if ('speechSynthesis' in window) { window.speechSynthesis.getVoices(); }
 
         function triggerHaptic() { if (navigator.vibrate) navigator.vibrate(50); }
@@ -282,7 +292,7 @@
             if(data.success) {
                 myRole = data.role; myUsername = id; myStoreName = data.storeName;
                 document.getElementById('login-overlay').style.display = 'none';
-                document.getElementById('bottom-menu-bar').style.display = 'none'; // 하단 메뉴 숨김
+                document.getElementById('bottom-menu-bar').style.display = 'none'; 
 
                 if (myRole === 'host') {
                     document.getElementById('current-store-name').innerText = data.storeName;
