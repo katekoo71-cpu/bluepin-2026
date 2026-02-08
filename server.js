@@ -1,8 +1,7 @@
-// server.js (루트 경로 수정 버전)
+// server.js (테스트 모드: DB 없이 즉시 실행)
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
-const mongoose = require('mongoose');
 const path = require('path');
 const cors = require('cors');
 
@@ -12,204 +11,127 @@ const io = socketIo(server);
 
 // 1. 미들웨어 설정
 app.use(cors());
-app.use(express.json({ limit: '10mb' })); // 사진 업로드 용량 제한 늘림
+app.use(express.json({ limit: '10mb' }));
+app.use(express.static(__dirname)); // 현재 폴더에서 화면 파일 찾기
 
-// ★ [수정됨] public 폴더가 아니라, 현재 폴더(__dirname)에서 html 파일을 찾습니다!
-app.use(express.static(__dirname)); 
+// ★ [핵심] DB 대신 임시로 저장할 변수들 (서버 꺼지면 초기화됨)
+let pins = [];
+let users = [];
 
-// 2. MongoDB 연결 (Render 환경 변수 사용, 없으면 로컬)
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/bluepin';
-mongoose.connect(MONGO_URI)
-    .then(() => console.log('✅ MongoDB Connected!'))
-    .catch(err => console.error('❌ MongoDB Error:', err));
-
-// 3. 데이터 스키마 정의
-// (1) 핀(Pin) 스키마
-const pinSchema = new mongoose.Schema({
-    lat: Number,
-    lng: Number,
-    type: String, // 'question', 'discount', 'fresh', 'seat', 'answered'
-    message: String,
-    storeName: String,
-    username: String, // 핀 작성자 ID
-    createdAt: { type: Date, default: Date.now }, // 생성 시간
-    
-    // 답변 관련 필드
-    answerText: String,
-    answerPhoto: String, // Base64 이미지 데이터
-    answerBy: String     // 답변자 ID
-});
-const Pin = mongoose.model('Pin', pinSchema);
-
-// (2) 유저(User) 스키마
-const userSchema = new mongoose.Schema({
-    username: { type: String, required: true, unique: true },
-    password: { type: String, required: true },
-    role: String, // 'host' or 'guest'
-    storeName: String,
-    points: { type: Number, default: 0 } // BP 포인트
-});
-const User = mongoose.model('User', userSchema);
-
-// 4. API 라우트 (회원가입, 로그인, 포인트 등)
-
-// 기본 페이지 로드 (루트 경로 접속 시 index.html 전송)
+// 2. API 라우트
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// 회원가입
-app.post('/register', async (req, res) => {
-    try {
-        const { username, password, role, storeName } = req.body;
-        const existingUser = await User.findOne({ username });
-        if (existingUser) return res.json({ success: false, message: "이미 존재하는 ID입니다." });
+// 회원가입 (메모리에 저장)
+app.post('/register', (req, res) => {
+    const { username, password, role, storeName } = req.body;
+    // 중복 체크
+    const existing = users.find(u => u.username === username);
+    if (existing) return res.json({ success: false, message: "이미 있는 ID입니다." });
 
-        const newUser = new User({ 
-            username, 
-            password, 
-            role, 
-            storeName: role === 'host' ? storeName : null,
-            points: role === 'guest' ? 1000 : 0 // 가입 축하금
-        });
-        await newUser.save();
-        res.json({ success: true, message: "가입 성공!" });
-    } catch (e) {
-        res.json({ success: false, message: "오류 발생" });
-    }
+    const newUser = {
+        username, 
+        password, 
+        role, 
+        storeName: role === 'host' ? storeName : null,
+        points: role === 'guest' ? 1000 : 0
+    };
+    users.push(newUser); // 배열에 추가
+    console.log("✅ 가입 완료:", newUser);
+    res.json({ success: true, message: "가입 성공 (테스트 모드)" });
 });
 
 // 로그인
-app.post('/login', async (req, res) => {
-    try {
-        const { username, password } = req.body;
-        const user = await User.findOne({ username, password });
-        if (user) {
-            res.json({ 
-                success: true, 
-                role: user.role, 
-                storeName: user.storeName || "", 
-                points: user.points 
-            });
-        } else {
-            res.json({ success: false, message: "ID 또는 비번이 틀렸습니다." });
-        }
-    } catch (e) {
-        res.json({ success: false, message: "서버 오류" });
+app.post('/login', (req, res) => {
+    const { username, password } = req.body;
+    const user = users.find(u => u.username === username && u.password === password);
+    
+    if (user) {
+        res.json({ success: true, role: user.role, storeName: user.storeName, points: user.points });
+    } else {
+        res.json({ success: false, message: "ID 또는 비번 틀림 (테스트 계정인지 확인하세요)" });
     }
 });
 
-// 포인트 사용 (Sound Pay)
-app.post('/use-point', async (req, res) => {
-    try {
-        const { username } = req.body;
-        const user = await User.findOne({ username });
-        if (!user) return res.json({ success: false, message: "유저 없음" });
-        
-        if (user.points >= 1000) {
-            user.points -= 1000;
-            await user.save();
-            res.json({ success: true, newPoints: user.points });
-        } else {
-            res.json({ success: false, message: "포인트 부족!" });
-        }
-    } catch (e) {
-        res.json({ success: false, message: "오류" });
+// 포인트 사용
+app.post('/use-point', (req, res) => {
+    const { username } = req.body;
+    const user = users.find(u => u.username === username);
+    if (user && user.points >= 1000) {
+        user.points -= 1000;
+        res.json({ success: true, newPoints: user.points });
+    } else {
+        res.json({ success: false, message: "포인트 부족" });
     }
 });
 
-// 미션 답변하기 (텍스트 or 사진)
-app.post('/answer-mission', async (req, res) => {
-    try {
-        const { username, pinId, answerText, photo } = req.body;
+// 미션 답변
+app.post('/answer-mission', (req, res) => {
+    const { username, pinId, answerText, photo } = req.body;
+    const user = users.find(u => u.username === username);
+    
+    // 포인트 지급
+    let reward = photo ? 500 : 100;
+    if (user) user.points += reward;
+
+    // 핀 찾아서 업데이트
+    const pin = pins.find(p => p.id === pinId);
+    if (pin) {
+        pin.type = 'answered';
+        pin.answerText = answerText;
+        pin.answerPhoto = photo;
+        pin.answerBy = username;
+        pin.createdAt = Date.now(); // 시간 초기화 (10분 연장)
         
-        // 1. 답변자 포인트 지급
-        const user = await User.findOne({ username });
-        let reward = 0;
-        if (photo) reward = 500; // 사진 인증
-        else if (answerText) reward = 100; // 텍스트 제보
-        
-        if (user) {
-            user.points += reward;
-            await user.save();
-        }
-
-        // 2. 핀 상태 업데이트 (삭제 X, 수정 O)
-        const pin = await Pin.findById(pinId);
-        if (pin) {
-            pin.type = 'answered'; // 타입을 '답변완료'로 변경
-            if (answerText) pin.answerText = answerText;
-            if (photo) pin.answerPhoto = photo;
-            pin.answerBy = username; // 답변자 기록
-            
-            // ★ 중요: 생성 시간을 '지금'으로 초기화 (10분 연장 효과)
-            pin.createdAt = new Date(); 
-            
-            await pin.save();
-
-            // 3. 모든 사람에게 알림 전송
-            io.emit('pinAnswered', { 
-                pinId: pin._id, 
-                updatedPin: pin,
-                asker: pin.username 
-            });
-        }
-
-        res.json({ success: true, newPoints: user ? user.points : 0 });
-
-    } catch (e) {
-        console.error(e);
-        res.json({ success: false, message: "처리 중 오류 발생" });
+        // 모두에게 알림
+        io.emit('pinAnswered', { pinId: pin.id, updatedPin: pin, asker: pin.username });
     }
+    
+    res.json({ success: true, newPoints: user ? user.points : 0 });
 });
 
-// 5. 소켓 통신
-io.on('connection', async (socket) => {
+// 3. 소켓 통신 (실시간 핀 관리)
+io.on('connection', (socket) => {
     console.log('✅ User connected');
 
-    // 접속 시 최근 30분 내 핀들 전송
-    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
-    const pins = await Pin.find({ createdAt: { $gte: thirtyMinutesAgo } });
-    socket.emit('loadPins', pins);
+    // 접속 시 최근 30분 내 핀만 보내주기
+    const now = Date.now();
+    const activePins = pins.filter(p => {
+        // 답변 핀은 10분, 일반 핀은 30분
+        const duration = p.type === 'answered' ? 10 * 60000 : 30 * 60000;
+        return (now - p.createdAt) < duration;
+    });
+    socket.emit('loadPins', activePins);
 
     // 새 핀 생성
-    socket.on('bossSignal', async (data) => {
-        try {
-            const newPin = new Pin(data);
-            await newPin.save();
-            io.emit('newSignal', newPin); 
-        } catch (e) {
-            console.error("Pin save error:", e);
-        }
+    socket.on('bossSignal', (data) => {
+        // ID와 시간을 서버에서 부여
+        const newPin = { 
+            ...data, 
+            id: Date.now().toString(), // 임시 ID 생성
+            _id: Date.now().toString(), // 클라이언트 호환용
+            createdAt: Date.now() 
+        };
+        pins.push(newPin);
+        io.emit('newSignal', newPin);
     });
 
     // 핀 삭제
-    socket.on('deletePin', async (pinId) => {
-        try {
-            await Pin.findByIdAndDelete(pinId);
-            io.emit('removePin', pinId); 
-        } catch (e) {
-            console.error(e);
-        }
+    socket.on('deletePin', (pinId) => {
+        pins = pins.filter(p => p.id !== pinId && p._id !== pinId);
+        io.emit('removePin', pinId);
     });
-
-    // 신고 기능
-    socket.on('reportPin', async (pinId) => {
-        try {
-            await Pin.findByIdAndDelete(pinId);
-            io.emit('removePin', pinId);
-        } catch (e) {
-            console.error(e);
-        }
-    });
-
-    socket.on('disconnect', () => {
-        console.log('❌ User disconnected');
+    
+    // 신고
+    socket.on('reportPin', (pinId) => {
+        pins = pins.filter(p => p.id !== pinId && p._id !== pinId);
+        io.emit('removePin', pinId);
     });
 });
 
-// 6. 서버 시작
+// 서버 시작
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-    console.log(`🚀 BluePin Server V13.3 running on port ${PORT}`);
+    console.log(`🚀 BluePin TEST Server running on port ${PORT}`);
 });
