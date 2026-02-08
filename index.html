@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>BluePin V13.6 (My Page) 👤</title>
+    <title>BluePin V13.7 (UI Fix) 🎨</title>
     
     <link rel="icon" href="/logo.png">
     <link rel="apple-touch-icon" href="/logo.png">
@@ -32,7 +32,7 @@
         .hidden { display: none; }
         .link-text { color: #666; font-size: 13px; text-decoration: underline; cursor: pointer; margin-top: 10px; display: block; }
 
-        /* ★ [NEW] 마이페이지 스타일 */
+        /* 마이페이지 스타일 */
         .mypage-header { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 15px; }
         .user-avatar { width: 50px; height: 50px; background: #ddd; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; }
         .user-info { text-align: left; }
@@ -50,14 +50,45 @@
         .tier-title { font-weight: bold; font-size: 16px; }
         .tier-price { float: right; font-size: 14px; color: #666; }
 
-        /* 하단 메뉴바 */
-        #bottom-menu-bar { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); width: 90%; max-width: 400px; background: white; border-radius: 50px; box-shadow: 0 5px 20px rgba(0,0,0,0.15); display: flex; justify-content: space-between; padding: 5px; z-index: 1500; }
-        .menu-btn { flex: 1; padding: 12px; border: none; background: transparent; font-size: 14px; font-weight: bold; color: #333; cursor: pointer; border-radius: 40px; transition: 0.2s; }
+        /* ★ [수정] 하단 메뉴바 -> 오른쪽으로 이동 */
+        #bottom-menu-bar { 
+            position: fixed; 
+            bottom: 30px; 
+            right: 20px; /* 왼쪽(50%)에서 오른쪽으로 변경 */
+            left: auto; 
+            transform: none; /* 중앙 정렬 제거 */
+            width: auto; 
+            background: white; 
+            border-radius: 50px; 
+            box-shadow: 0 5px 20px rgba(0,0,0,0.15); 
+            display: flex; 
+            gap: 10px;
+            padding: 5px; 
+            z-index: 1500; 
+        }
+        .menu-btn { padding: 12px 20px; border: none; background: transparent; font-size: 14px; font-weight: bold; color: #333; cursor: pointer; border-radius: 40px; transition: 0.2s; white-space: nowrap; }
         .menu-btn:active { background: #f3f4f6; }
         
         #toast-msg { position: fixed; top: 80px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.7); color: white; padding: 10px 20px; border-radius: 30px; z-index: 3000; font-size: 14px; display: none; }
-        #guest-wallet { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: white; padding: 15px 25px; border-radius: 50px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); z-index: 1500; display: none; display: flex; align-items: center; gap: 10px; cursor: pointer; }
+        
+        /* ★ [수정] 손님 지갑 -> 왼쪽으로 이동 */
+        #guest-wallet { 
+            position: fixed; 
+            bottom: 30px; 
+            left: 20px; /* 중앙(50%)에서 왼쪽으로 변경 */
+            transform: none; /* 중앙 정렬 제거 */
+            background: white; 
+            padding: 15px 25px; 
+            border-radius: 50px; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3); 
+            z-index: 1500; 
+            display: none; 
+            align-items: center; 
+            gap: 10px; 
+            cursor: pointer; 
+        }
         .wallet-icon { font-size: 20px; } .wallet-amount { font-weight: bold; font-size: 18px; color: #4F46E5; }
+        
         #flash-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #2563EB; z-index: 99999; display: none; align-items: center; justify-content: center; flex-direction: column; color: white; text-align: center; }
         @keyframes flashEffect { 0% { opacity: 1; background: #2563EB; } 50% { opacity: 0.3; background: #60A5FA; } 100% { opacity: 1; background: #2563EB; } }
         .flashing { animation: flashEffect 0.3s infinite; }
@@ -82,6 +113,8 @@
         .btn-red { background: #EF4444; } .btn-yellow { background: #F59E0B; } .btn-blue { background: #3B82F6; }
         
         #open-controls-btn { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #111; color: white; padding: 12px 24px; border-radius: 50px; font-weight: bold; border: none; z-index: 1500; display: none; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        
+        /* 물음표 버튼 */
         #guest-ask-btn { position: fixed; bottom: 90px; right: 20px; width: 50px; height: 50px; border-radius: 50%; background: white; color: #333; border: 2px solid #ddd; font-size: 24px; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.2); z-index: 1500; cursor: pointer; display: none; }
         
         .delete-btn { width:100%; background:#EF4444; color:white; border:none; padding:8px; border-radius:5px; margin-top:5px; cursor:pointer; font-weight:bold; }
@@ -151,8 +184,7 @@
                     <span style="font-size:24px; font-weight:bold; color:#4F46E5;" id="mp-points">0 BP</span>
                 </div>
                 <h4 style="text-align:left; margin:10px 0;">📜 포인트 내역</h4>
-                <div class="history-list" id="mp-history">
-                    </div>
+                <div class="history-list" id="mp-history"></div>
             </div>
 
             <div id="host-mypage" class="hidden">
@@ -238,7 +270,7 @@
         let myRole = ""; let selectedRole = ""; let myUsername = ""; let myStoreName = "";
         let markers = {}; let isAskMode = false; let targetPinId = null; 
         let tempAskLat = 0; let tempAskLng = 0; let selectedAskType = 'text';
-        let myTier = 'Free'; // 내 등급
+        let myTier = 'Free'; 
 
         const brandSound = new Audio('/brand_sound.mp3');
         brandSound.preload = 'auto';
@@ -280,129 +312,55 @@
             }
         });
 
-        // 마이페이지 함수들
         async function openMyPage() {
             triggerHaptic();
-            // 서버에서 최신 정보(히스토리 포함) 가져오기
             const res = await fetch('/my-info', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username: myUsername }) });
             const data = await res.json();
-            
             if (data.success) {
                 const user = data.user;
                 document.getElementById('mp-name').innerText = user.username;
                 document.getElementById('mp-role').innerText = user.role === 'host' ? '점주' : '손님';
                 document.getElementById('mp-points').innerText = user.points + " BP";
-                
                 if (user.role === 'guest') {
                     document.getElementById('guest-mypage').classList.remove('hidden');
                     document.getElementById('host-mypage').classList.add('hidden');
-                    // 히스토리 렌더링
-                    const listEl = document.getElementById('mp-history');
-                    listEl.innerHTML = '';
-                    if (!user.history || user.history.length === 0) {
-                        listEl.innerHTML = '<div style="text-align:center; color:#999; padding:20px;">내역이 없습니다.</div>';
-                    } else {
+                    const listEl = document.getElementById('mp-history'); listEl.innerHTML = '';
+                    if (!user.history || user.history.length === 0) listEl.innerHTML = '<div style="text-align:center; color:#999; padding:20px;">내역이 없습니다.</div>';
+                    else {
                         user.history.forEach(item => {
                             const colorClass = item.type === 'earn' ? 'amount-plus' : 'amount-minus';
                             const sign = item.type === 'earn' ? '+' : '';
-                            listEl.innerHTML += `
-                                <div class="history-item">
-                                    <span>${item.desc}<br><small style="color:#999;">${item.date}</small></span>
-                                    <span class="${colorClass}">${sign}${item.amount} BP</span>
-                                </div>`;
+                            listEl.innerHTML += `<div class="history-item"><span>${item.desc}<br><small style="color:#999;">${item.date}</small></span><span class="${colorClass}">${sign}${item.amount} BP</span></div>`;
                         });
                     }
                 } else {
                     document.getElementById('guest-mypage').classList.add('hidden');
                     document.getElementById('host-mypage').classList.remove('hidden');
                     myTier = user.tier || 'Free';
-                    // 등급 표시 업데이트 (active 클래스)
                     document.querySelectorAll('.tier-card').forEach(el => el.classList.remove('active'));
                     const cards = document.querySelectorAll('.tier-card');
-                    if (myTier === 'Free') cards[0].classList.add('active');
-                    else if (myTier === 'Basic') cards[1].classList.add('active');
-                    else if (myTier === 'Pro') cards[2].classList.add('active');
+                    if (myTier === 'Free') cards[0].classList.add('active'); else if (myTier === 'Basic') cards[1].classList.add('active'); else if (myTier === 'Pro') cards[2].classList.add('active');
                 }
-                
                 document.getElementById('mypage-overlay').style.display = 'flex';
             }
         }
         function closeMyPage() { document.getElementById('mypage-overlay').style.display = 'none'; }
-        
-        async function upgradeTier(tier) {
-            if(!confirm(`${tier} 등급으로 업그레이드 하시겠습니까?\n(테스트: 무료로 즉시 적용)`)) return;
-            const res = await fetch('/upgrade-tier', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username: myUsername, tier: tier }) });
-            const data = await res.json();
-            if(data.success) { alert(`🎉 축하합니다! ${tier} 등급이 되었습니다.`); openMyPage(); }
-        }
+        async function upgradeTier(tier) { if(!confirm(`${tier} 등급으로 업그레이드 하시겠습니까?`)) return; const res = await fetch('/upgrade-tier', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username: myUsername, tier: tier }) }); const data = await res.json(); if(data.success) { alert(`🎉 ${tier} 등급이 되었습니다.`); openMyPage(); } }
+        function logout() { location.reload(); }
 
-        function logout() {
-            location.reload(); // 새로고침으로 로그아웃 처리 (간편 구현)
-        }
-
-        // ... 기존 함수들 (로그인, 핀 관리 등) 유지 ...
         function selectAskType(type) { selectedAskType = type; document.getElementById('btn-ask-text').classList.remove('selected'); document.getElementById('btn-ask-photo').classList.remove('selected'); document.getElementById('btn-ask-' + type).classList.add('selected'); }
         function closeAskModal() { document.getElementById('ask-modal').style.display = 'none'; }
-        function submitAsk() {
-            const text = document.getElementById('ask-input').value; if (!text) return alert("입력하세요.");
-            const data = { lat: tempAskLat, lng: tempAskLng, type: 'question', message: text, storeName: "❓궁금해요", username: myUsername, rewardType: selectedAskType, time: Date.now() };
-            socket.emit('bossSignal', data); document.getElementById('ask-input').value = ''; closeAskModal();
-        }
+        function submitAsk() { const text = document.getElementById('ask-input').value; if (!text) return alert("입력하세요."); const data = { lat: tempAskLat, lng: tempAskLng, type: 'question', message: text, storeName: "❓궁금해요", username: myUsername, rewardType: selectedAskType, time: Date.now() }; socket.emit('bossSignal', data); document.getElementById('ask-input').value = ''; closeAskModal(); }
 
-        function openLoginModal(role) {
-            triggerHaptic(); selectedRole = role;
-            document.getElementById('login-overlay').style.display = 'flex';
-            document.getElementById('step-login').classList.remove('hidden'); document.getElementById('step-signup').classList.add('hidden');
-            if(role === 'guest') { document.getElementById('login-title').innerText = "🙋‍♂️ 손님 로그인"; document.getElementById('signup-title').innerText = "🙋‍♂️ 손님 회원가입 (1000P 지급)"; document.getElementById('sign-store').classList.add('hidden'); } 
-            else { document.getElementById('login-title').innerText = "🏪 사장님 로그인"; document.getElementById('signup-title').innerText = "🏪 사장님 회원가입"; document.getElementById('sign-store').classList.remove('hidden'); }
-        }
+        function openLoginModal(role) { triggerHaptic(); selectedRole = role; document.getElementById('login-overlay').style.display = 'flex'; document.getElementById('step-login').classList.remove('hidden'); document.getElementById('step-signup').classList.add('hidden'); if(role === 'guest') { document.getElementById('login-title').innerText = "🙋‍♂️ 손님 로그인"; document.getElementById('signup-title').innerText = "🙋‍♂️ 손님 회원가입 (1000P 지급)"; document.getElementById('sign-store').classList.add('hidden'); } else { document.getElementById('login-title').innerText = "🏪 사장님 로그인"; document.getElementById('signup-title').innerText = "🏪 사장님 회원가입"; document.getElementById('sign-store').classList.remove('hidden'); } }
         function closeLoginModal() { triggerHaptic(); document.getElementById('login-overlay').style.display = 'none'; }
         function showLogin() { document.getElementById('step-signup').classList.add('hidden'); document.getElementById('step-login').classList.remove('hidden'); }
         function showSignup() { document.getElementById('step-login').classList.add('hidden'); document.getElementById('step-signup').classList.remove('hidden'); }
 
-        async function doSignup() {
-            triggerHaptic(); const id = document.getElementById('sign-id').value; const pw = document.getElementById('sign-pw').value; const store = document.getElementById('sign-store').value;
-            if(!id || !pw) return alert("입력해주세요");
-            const res = await fetch('/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: id, password: pw, role: selectedRole, storeName: store }) });
-            const data = await res.json(); if(data.success) { alert(data.message); showLogin(); } else { alert(data.message); }
-        }
+        async function doSignup() { triggerHaptic(); const id = document.getElementById('sign-id').value; const pw = document.getElementById('sign-pw').value; const store = document.getElementById('sign-store').value; if(!id || !pw) return alert("입력해주세요"); const res = await fetch('/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: id, password: pw, role: selectedRole, storeName: store }) }); const data = await res.json(); if(data.success) { alert(data.message); showLogin(); } else { alert(data.message); } }
+        async function doLogin() { triggerHaptic(); const id = document.getElementById('login-id').value; const pw = document.getElementById('login-pw').value; const res = await fetch('/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: id, password: pw }) }); const data = await res.json(); if(data.success) { myRole = data.role; myUsername = id; myStoreName = data.storeName; myTier = data.tier; document.getElementById('login-overlay').style.display = 'none'; document.getElementById('menu-before-login').style.display = 'none'; document.getElementById('menu-after-login').style.display = 'flex'; if (myRole === 'host') { document.getElementById('current-store-name').innerText = data.storeName; document.getElementById('open-controls-btn').style.display = 'block'; document.getElementById('crosshair').style.display = 'block'; toggleProMode(); } else { document.getElementById('guest-wallet').style.display = 'flex'; document.getElementById('my-points').innerText = data.points + " BP"; document.getElementById('guest-ask-btn').style.display = 'block'; document.getElementById('crosshair').style.display = 'none'; alert(`환영합니다! 현재 포인트: ${data.points} BP`); } if (navigator.geolocation) navigator.geolocation.getCurrentPosition(pos => { map.setView([pos.coords.latitude, pos.coords.longitude], 18); }); setTimeout(() => map.invalidateSize(), 100); } else { alert(data.message); } }
 
-        async function doLogin() {
-            triggerHaptic(); const id = document.getElementById('login-id').value; const pw = document.getElementById('login-pw').value;
-            const res = await fetch('/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: id, password: pw }) });
-            const data = await res.json();
-            if(data.success) {
-                myRole = data.role; myUsername = id; myStoreName = data.storeName; myTier = data.tier;
-                document.getElementById('login-overlay').style.display = 'none';
-                
-                // 메뉴바 교체 (로그인 전 -> 후)
-                document.getElementById('menu-before-login').style.display = 'none';
-                document.getElementById('menu-after-login').style.display = 'flex';
-
-                if (myRole === 'host') {
-                    document.getElementById('current-store-name').innerText = data.storeName;
-                    document.getElementById('open-controls-btn').style.display = 'block'; document.getElementById('crosshair').style.display = 'block';
-                    toggleProMode();
-                } else {
-                    document.getElementById('guest-wallet').style.display = 'flex'; document.getElementById('my-points').innerText = data.points + " BP";
-                    document.getElementById('guest-ask-btn').style.display = 'block'; document.getElementById('crosshair').style.display = 'none';
-                    alert(`환영합니다! 현재 포인트: ${data.points} BP`);
-                }
-                if (navigator.geolocation) navigator.geolocation.getCurrentPosition(pos => { map.setView([pos.coords.latitude, pos.coords.longitude], 18); });
-                setTimeout(() => map.invalidateSize(), 100);
-            } else { alert(data.message); }
-        }
-
-        async function startFlash() {
-            triggerHaptic(); if(!confirm("1000 BP를 사용하여 혜택을 받으시겠습니까?")) return;
-            playBrandSound(); const overlay = document.getElementById('flash-overlay'); overlay.style.display = 'flex'; overlay.classList.add('flashing');
-            try {
-                const res = await fetch('/use-point', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: myUsername }) });
-                const data = await res.json();
-                if (data.success) { document.getElementById('my-points').innerText = data.newPoints + " BP"; } 
-                else { alert("❌ " + data.message); stopFlash(); }
-            } catch(e) { alert("통신 오류!"); stopFlash(); }
-        }
+        async function startFlash() { triggerHaptic(); if(!confirm("1000 BP를 사용하여 혜택을 받으시겠습니까?")) return; playBrandSound(); const overlay = document.getElementById('flash-overlay'); overlay.style.display = 'flex'; overlay.classList.add('flashing'); try { const res = await fetch('/use-point', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: myUsername }) }); const data = await res.json(); if (data.success) { document.getElementById('my-points').innerText = data.newPoints + " BP"; } else { alert("❌ " + data.message); stopFlash(); } } catch(e) { alert("통신 오류!"); stopFlash(); } }
         function stopFlash() { const overlay = document.getElementById('flash-overlay'); overlay.style.display = 'none'; overlay.classList.remove('flashing'); }
         function deletePin(pinId) { triggerHaptic(); if(confirm("삭제하시겠습니까?")) socket.emit('deletePin', pinId); }
         function enableAskMode() { triggerHaptic(); isAskMode = true; document.getElementById('map').classList.add('crosshair-cursor'); document.getElementById('toast-msg').style.display = 'block'; }
