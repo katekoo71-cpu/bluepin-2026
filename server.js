@@ -1,4 +1,4 @@
-// server.js
+// server.js (루트 경로 수정 버전)
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
@@ -13,7 +13,9 @@ const io = socketIo(server);
 // 1. 미들웨어 설정
 app.use(cors());
 app.use(express.json({ limit: '10mb' })); // 사진 업로드 용량 제한 늘림
-app.use(express.static(path.join(__dirname, 'public')));
+
+// ★ [수정됨] public 폴더가 아니라, 현재 폴더(__dirname)에서 html 파일을 찾습니다!
+app.use(express.static(__dirname)); 
 
 // 2. MongoDB 연결 (Render 환경 변수 사용, 없으면 로컬)
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/bluepin';
@@ -32,7 +34,7 @@ const pinSchema = new mongoose.Schema({
     username: String, // 핀 작성자 ID
     createdAt: { type: Date, default: Date.now }, // 생성 시간
     
-    // ★ 답변 관련 필드 추가
+    // 답변 관련 필드
     answerText: String,
     answerPhoto: String, // Base64 이미지 데이터
     answerBy: String     // 답변자 ID
@@ -50,6 +52,11 @@ const userSchema = new mongoose.Schema({
 const User = mongoose.model('User', userSchema);
 
 // 4. API 라우트 (회원가입, 로그인, 포인트 등)
+
+// 기본 페이지 로드 (루트 경로 접속 시 index.html 전송)
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
 
 // 회원가입
 app.post('/register', async (req, res) => {
@@ -111,7 +118,7 @@ app.post('/use-point', async (req, res) => {
     }
 });
 
-// ★ [핵심 기능] 미션 답변하기 (텍스트 or 사진)
+// 미션 답변하기 (텍스트 or 사진)
 app.post('/answer-mission', async (req, res) => {
     try {
         const { username, pinId, answerText, photo } = req.body;
@@ -127,24 +134,24 @@ app.post('/answer-mission', async (req, res) => {
             await user.save();
         }
 
-        // 2. 핀 상태 업데이트 (★ 삭제가 아니라 수정!)
+        // 2. 핀 상태 업데이트 (삭제 X, 수정 O)
         const pin = await Pin.findById(pinId);
         if (pin) {
             pin.type = 'answered'; // 타입을 '답변완료'로 변경
             if (answerText) pin.answerText = answerText;
             if (photo) pin.answerPhoto = photo;
-            pin.answerBy = username; // 답변자 기록 (익명 표시용)
+            pin.answerBy = username; // 답변자 기록
             
-            // ★ 중요: 생성 시간을 '지금'으로 초기화 (그래야 클라이언트에서 10분 카운트다운 다시 시작)
+            // ★ 중요: 생성 시간을 '지금'으로 초기화 (10분 연장 효과)
             pin.createdAt = new Date(); 
             
             await pin.save();
 
-            // 3. 모든 사람에게 "답변 달렸어요!" 알림 전송 (초록 핀으로 교체하라고 지시)
+            // 3. 모든 사람에게 알림 전송
             io.emit('pinAnswered', { 
                 pinId: pin._id, 
                 updatedPin: pin,
-                asker: pin.username // 원래 질문자에게 알림 주기 위해
+                asker: pin.username 
             });
         }
 
@@ -156,43 +163,41 @@ app.post('/answer-mission', async (req, res) => {
     }
 });
 
-
-// 5. 소켓 통신 (실시간 핀 관리)
+// 5. 소켓 통신
 io.on('connection', async (socket) => {
     console.log('✅ User connected');
 
-    // 접속 시 현재 살아있는 핀들 다 보내주기
-    // (답변 완료된 핀은 10분, 일반 핀은 30분 이내인 것만 조회해야 함 - 간단히 30분 전체 조회 후 클라이언트 필터링)
+    // 접속 시 최근 30분 내 핀들 전송
     const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
     const pins = await Pin.find({ createdAt: { $gte: thirtyMinutesAgo } });
     socket.emit('loadPins', pins);
 
-    // 새 핀 생성 (질문, 홍보 등)
+    // 새 핀 생성
     socket.on('bossSignal', async (data) => {
         try {
             const newPin = new Pin(data);
             await newPin.save();
-            io.emit('newSignal', newPin); // 모두에게 전파
+            io.emit('newSignal', newPin); 
         } catch (e) {
             console.error("Pin save error:", e);
         }
     });
 
-    // 핀 삭제 (작성자 본인 삭제)
+    // 핀 삭제
     socket.on('deletePin', async (pinId) => {
         try {
             await Pin.findByIdAndDelete(pinId);
-            io.emit('removePin', pinId); // 지도에서 지우라고 전파
+            io.emit('removePin', pinId); 
         } catch (e) {
             console.error(e);
         }
     });
 
-    // 신고 기능 (누적 없이 즉시 삭제 - MVP용)
+    // 신고 기능
     socket.on('reportPin', async (pinId) => {
         try {
-            await Pin.findByIdAndDelete(pinId); // DB 삭제
-            io.emit('removePin', pinId); // 모두의 지도에서 삭제
+            await Pin.findByIdAndDelete(pinId);
+            io.emit('removePin', pinId);
         } catch (e) {
             console.error(e);
         }
@@ -206,5 +211,5 @@ io.on('connection', async (socket) => {
 // 6. 서버 시작
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-    console.log(`🚀 BluePin Server V13.2 running on port ${PORT}`);
+    console.log(`🚀 BluePin Server V13.3 running on port ${PORT}`);
 });
