@@ -1,7 +1,7 @@
 {
   "name": "bluepin-server",
-  "version": "13.3.0",
-  "description": "BluePin Real-time Map Server",
+  "version": "1.0.0",
+  "description": "BluePin Server",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
