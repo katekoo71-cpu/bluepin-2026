@@ -1,4 +1,4 @@
-// server.js (V13.6 - 마이페이지 & 히스토리)
+// server.js (V13.8 - 점주 무료 핀 & UI 수정 대응)
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
@@ -13,16 +13,15 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(__dirname));
 
-// 임시 데이터 저장소
+// 임시 데이터
 let pins = [];
 let users = []; 
-// User 구조: { username, password, role, storeName, points, tier, history: [] }
 
-// ★ 히스토리 기록 함수
+// 히스토리 기록
 function logHistory(user, type, amount, desc) {
     if (!user.history) user.history = [];
     user.history.unshift({
-        type, // 'earn', 'spend', 'system'
+        type, 
         amount,
         desc,
         date: new Date().toLocaleString()
@@ -41,12 +40,10 @@ app.post('/register', (req, res) => {
         username, password, role, 
         storeName: role === 'host' ? storeName : null,
         points: role === 'guest' ? 1000 : 0,
-        tier: role === 'host' ? 'Free' : null, // 점주 등급 (Free, Basic, Pro)
+        tier: role === 'host' ? 'Free' : null,
         history: []
     };
-
     if (role === 'guest') logHistory(newUser, 'earn', 1000, '회원가입 축하금');
-    
     users.push(newUser);
     res.json({ success: true, message: "가입 성공!" });
 });
@@ -56,49 +53,29 @@ app.post('/login', (req, res) => {
     const { username, password } = req.body;
     const user = users.find(u => u.username === username && u.password === password);
     if (user) {
-        res.json({ 
-            success: true, 
-            role: user.role, 
-            storeName: user.storeName, 
-            points: user.points,
-            tier: user.tier // 등급 정보도 전송
-        });
+        res.json({ success: true, role: user.role, storeName: user.storeName, points: user.points, tier: user.tier });
     } else {
         res.json({ success: false, message: "ID 또는 비번 틀림" });
     }
 });
 
-// ★ [NEW] 마이페이지 정보 조회
+// 마이페이지 정보
 app.post('/my-info', (req, res) => {
     const { username } = req.body;
     const user = users.find(u => u.username === username);
     if (user) {
-        res.json({ 
-            success: true, 
-            user: {
-                username: user.username,
-                role: user.role,
-                storeName: user.storeName,
-                points: user.points,
-                tier: user.tier,
-                history: user.history // 활동 내역 전송
-            }
-        });
+        res.json({ success: true, user: { username: user.username, role: user.role, storeName: user.storeName, points: user.points, tier: user.tier, history: user.history } });
     } else {
         res.json({ success: false });
     }
 });
 
-// ★ [NEW] 점주 등급 업그레이드 (결제 시뮬레이션)
+// 등급 업그레이드
 app.post('/upgrade-tier', (req, res) => {
-    const { username, tier } = req.body; // 'Basic' or 'Pro'
+    const { username, tier } = req.body;
     const user = users.find(u => u.username === username);
-    if (user) {
-        user.tier = tier;
-        res.json({ success: true, newTier: tier });
-    } else {
-        res.json({ success: false });
-    }
+    if (user) { user.tier = tier; res.json({ success: true, newTier: tier }); } 
+    else { res.json({ success: false }); }
 });
 
 // Sound Pay
@@ -107,7 +84,7 @@ app.post('/use-point', (req, res) => {
     const user = users.find(u => u.username === username);
     if (user && user.points >= 1000) {
         user.points -= 1000;
-        logHistory(user, 'spend', -1000, 'Sound Pay 결제'); // 기록
+        logHistory(user, 'spend', -1000, 'Sound Pay 결제');
         res.json({ success: true, newPoints: user.points });
     } else {
         res.json({ success: false, message: "포인트 부족!" });
@@ -123,13 +100,13 @@ app.post('/answer-mission', (req, res) => {
     if (pin && user) {
         const reward = pin.reward || 100;
         user.points += reward;
-        logHistory(user, 'earn', reward, `미션 성공 (${photo ? '사진' : '텍스트'})`); // 기록
+        logHistory(user, 'earn', reward, `미션 성공 (${photo ? '사진' : '텍스트'})`);
 
         pin.type = 'answered';
         pin.answerText = answerText;
         pin.answerPhoto = photo;
         pin.answerBy = username;
-        pin.createdAt = Date.now();
+        pin.createdAt = Date.now(); // 10분 연장
         
         io.emit('pinAnswered', { pinId: pin.id, updatedPin: pin, asker: pin.username });
         res.json({ success: true, newPoints: user.points });
@@ -148,30 +125,41 @@ io.on('connection', (socket) => {
     });
     socket.emit('loadPins', activePins);
 
+    // ★ [핵심 수정] 핀 생성 로직 (점주는 무료, 손님은 유료)
     socket.on('bossSignal', (data) => {
         const user = users.find(u => u.username === data.username);
-        let cost = (data.rewardType === 'photo') ? 500 : 100;
+        if (!user) return;
 
-        if (user) {
-            if (user.points >= cost) {
-                user.points -= cost;
-                logHistory(user, 'spend', -cost, `질문 등록 (${data.rewardType})`); // 기록
-                
-                const newPin = { 
-                    ...data, 
-                    id: Date.now().toString(), 
-                    _id: Date.now().toString(), 
-                    createdAt: Date.now(),
-                    reward: cost 
-                };
-                pins.push(newPin);
-                
-                io.emit('newSignal', newPin);
-                socket.emit('pointUpdated', user.points);
-            } else {
-                socket.emit('errorMsg', "포인트가 부족합니다!");
+        let cost = 0;
+
+        // 1. 손님이 질문할 때만 돈을 받음
+        if (user.role === 'guest' && data.type === 'question') {
+            cost = (data.rewardType === 'photo') ? 500 : 100;
+            
+            if (user.points < cost) {
+                socket.emit('errorMsg', "포인트가 부족합니다! (질문 작성 비용)");
+                return; // 여기서 중단
             }
+
+            // 포인트 차감
+            user.points -= cost;
+            logHistory(user, 'spend', -cost, `질문 등록 (${data.rewardType === 'photo' ? '사진' : '텍스트'})`);
+            socket.emit('pointUpdated', user.points);
         }
+
+        // 2. 점주는 cost = 0 이므로 포인트 검사 없이 통과!
+        
+        // 핀 생성
+        const newPin = { 
+            ...data, 
+            id: Date.now().toString(), 
+            _id: Date.now().toString(), 
+            createdAt: Date.now(),
+            reward: cost // 손님이 낸 돈이 현상금이 됨 (점주는 0원)
+        };
+        pins.push(newPin);
+        
+        io.emit('newSignal', newPin);
     });
 
     socket.on('deletePin', (pinId) => {
@@ -186,4 +174,4 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => { console.log(`🚀 BluePin V13.6 Server running on port ${PORT}`); });
+server.listen(PORT, () => { console.log(`🚀 BluePin V13.8 Server running on port ${PORT}`); });
