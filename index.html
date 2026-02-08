@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>BluePin V13.2 (Live Answer) 🎵</title>
+    <title>BluePin V13.3 (Final Fix) 🎵</title>
     
     <link rel="icon" href="/logo.png">
     <link rel="apple-touch-icon" href="/logo.png">
@@ -54,15 +54,23 @@
         .menu-btn:active { background: #f3f4f6; }
         
         #toast-msg { position: fixed; top: 80px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.7); color: white; padding: 10px 20px; border-radius: 30px; z-index: 3000; font-size: 14px; display: none; }
+        
+        /* 손님 지갑 */
         #guest-wallet { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: white; padding: 15px 25px; border-radius: 50px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); z-index: 1500; display: none; display: flex; align-items: center; gap: 10px; cursor: pointer; }
         .wallet-icon { font-size: 20px; } .wallet-amount { font-weight: bold; font-size: 18px; color: #4F46E5; }
+        
+        /* Sound Pay 플래시 */
         #flash-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #2563EB; z-index: 99999; display: none; align-items: center; justify-content: center; flex-direction: column; color: white; text-align: center; }
         @keyframes flashEffect { 0% { opacity: 1; background: #2563EB; } 50% { opacity: 0.3; background: #60A5FA; } 100% { opacity: 1; background: #2563EB; } }
         .flashing { animation: flashEffect 0.3s infinite; }
+        
+        /* 십자선 (질문 모드) */
         #crosshair { position: fixed; top: 50%; left: 50%; width: 40px; height: 40px; transform: translate(-50%, -50%); z-index: 1000; pointer-events: none; display: none; }
         #crosshair::before, #crosshair::after { content: ''; position: absolute; background: #EF4444; box-shadow: 0 0 4px white; border-radius: 2px; }
         #crosshair::before { top: 18px; left: 0; width: 40px; height: 4px; }
         #crosshair::after { top: 0; left: 18px; width: 4px; height: 40px; }
+        
+        /* 사장님 컨트롤 패널 */
         #host-controls { position: fixed; bottom: -500px; left: 0; width: 100%; background: white; border-radius: 20px 20px 0 0; padding: 20px; z-index: 2000; transition: bottom 0.3s; padding-bottom: 40px; box-sizing: border-box; box-shadow: 0 -5px 20px rgba(0,0,0,0.1); }
         #host-controls.active { bottom: 0; }
         .pro-toggle-area { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding: 10px; background: #F3F4F6; border-radius: 10px; border: 1px solid #E5E7EB; }
@@ -76,7 +84,22 @@
         .action-buttons { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
         .action-btn { padding: 12px 2px; border: none; border-radius: 12px; font-size: 13px; font-weight: bold; color: white; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 5px; word-break: keep-all; }
         .btn-red { background: #EF4444; } .btn-yellow { background: #F59E0B; } .btn-blue { background: #3B82F6; }
+        
+        /* 알림 버튼들 */
         #open-controls-btn { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #111; color: white; padding: 12px 24px; border-radius: 50px; font-weight: bold; border: none; z-index: 1500; display: none; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        
+        /* ★ [복구 완료] 물음표 버튼 스타일 */
+        #guest-ask-btn { 
+            position: fixed; bottom: 90px; right: 20px; 
+            width: 50px; height: 50px; border-radius: 50%; 
+            background: white; color: #333; border: 2px solid #ddd; 
+            font-size: 24px; font-weight: bold; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2); 
+            z-index: 1500; 
+            cursor: pointer; 
+            display: none; /* 기본은 숨김, 손님 로그인 시 JS로 보임 */
+        }
+
         .delete-btn { width:100%; background:#EF4444; color:white; border:none; padding:8px; border-radius:5px; margin-top:5px; cursor:pointer; font-weight:bold; }
         .btn-camera { width:100%; background:#10B981; color:white; border:none; padding:12px; border-radius:8px; margin-top:5px; cursor:pointer; font-weight:bold; font-size:14px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
         .btn-text { width:100%; background:#3B82F6; color:white; border:none; padding:8px; border-radius:8px; margin-top:5px; cursor:pointer; font-weight:bold; font-size:12px; opacity: 0.9; }
@@ -91,8 +114,7 @@
         .label-yellow { border-color: #F59E0B; color: #F59E0B; } 
         .label-blue { border-color: #3B82F6; color: #3B82F6; }
         .label-white { background: white; border-color: #666; color: #333; }
-        
-        /* ★ [NEW] 답변 완료(초록색) 핀 스타일 */
+        /* 답변 완료(초록색) 핀 스타일 */
         .label-green { border-color: #10B981; color: #10B981; background: white; }
     </style>
 </head>
@@ -141,6 +163,7 @@
     </div>
 
     <button id="open-controls-btn" onclick="toggleControls()">📣 여기 알리기</button>
+    
     <button id="guest-ask-btn" onclick="enableAskMode()">❓</button>
 
     <div id="guest-wallet" style="display:none;" onclick="startFlash()">
@@ -175,7 +198,7 @@
         let myRole = ""; let selectedRole = ""; let myUsername = ""; let myStoreName = "";
         let markers = {}; let isAskMode = false; let targetPinId = null; 
 
-        // ★ [Sound Pay 최적화] 오디오 미리 로딩 (딜레이 방지)
+        // Sound Pay 오디오 미리 로딩
         const brandSound = new Audio('/brand_sound.mp3');
         brandSound.preload = 'auto';
 
@@ -190,7 +213,6 @@
             }, 2000);
         };
 
-        // ★ [Sound Pay 실행]
         function playBrandSound() {
             try {
                 brandSound.volume = 1.0;
@@ -210,21 +232,15 @@
             socket.on('newSignal', (data) => { addMarkerToMap(data); });
             socket.on('removePin', (id) => { if (markers[id]) { map.removeLayer(markers[id]); delete markers[id]; } });
 
-            // ★ [NEW] 답변 완료 이벤트 수신 (초록 핀으로 교체)
+            // 답변 완료 이벤트 수신 (초록 핀으로 교체)
             socket.on('pinAnswered', (data) => {
-                // 1. 기존 하얀 핀 삭제
                 if (markers[data.pinId]) { map.removeLayer(markers[data.pinId]); delete markers[data.pinId]; }
-                
-                // 2. 초록색 완료 핀 생성
                 addMarkerToMap(data.updatedPin);
-
-                // 3. 내가 질문자라면 알림
                 if (data.asker === myUsername) {
                     playBrandSound(); 
                     alert("💌 질문에 대한 답변이 도착했습니다!\n지도에서 초록색 핀을 확인하세요.");
                 }
             });
-
         } catch (e) { statusEl.innerText = "⚠️ 오류"; }
 
         let map = L.map('map').setView([37.5445, 127.0560], 16);
@@ -287,7 +303,10 @@
                     toggleProMode();
                 } else {
                     document.getElementById('guest-wallet').style.display = 'flex'; document.getElementById('my-points').innerText = data.points + " BP";
-                    document.getElementById('guest-ask-btn').style.display = 'block'; document.getElementById('crosshair').style.display = 'none';
+                    
+                    // ★ [중요] 손님 로그인 시 물음표 버튼 보이게 하기
+                    document.getElementById('guest-ask-btn').style.display = 'block'; 
+                    document.getElementById('crosshair').style.display = 'none';
                     alert(`환영합니다! 현재 포인트: ${data.points} BP`);
                 }
                 if (navigator.geolocation) navigator.geolocation.getCurrentPosition(pos => { map.setView([pos.coords.latitude, pos.coords.longitude], 18); });
@@ -327,7 +346,6 @@
                 const file = input.files[0]; const reader = new FileReader();
                 reader.onload = async function(e) {
                     const photoBase64 = e.target.result;
-                    // 서버로 전송 (서버에서 pinAnswered 이벤트를 발생시켜야 함)
                     const res = await fetch('/answer-mission', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: myUsername, pinId: targetPinId, photo: photoBase64 }) });
                     const data = await res.json();
                     if(data.success) { alert("✅ 사진 인증 성공!\n💰 +500 BP 획득!"); document.getElementById('my-points').innerText = data.newPoints + " BP"; } else { alert("오류: " + data.message); }
@@ -379,15 +397,11 @@
             socket.emit('bossSignal', data); document.getElementById('promo-text').value = ''; toggleControls();
         }
 
-        // ★ [핵심 로직] 핀 종류별 표시 및 자동 삭제
+        // 핀 생성 및 자동 삭제 로직
         function addMarkerToMap(data) {
             const createdTime = new Date(data.createdAt || data.time).getTime(); 
-            
-            // 답변 완료된 핀은 10분(600초), 일반 핀은 30분(1800초) 뒤 증발
             let duration = 30 * 60 * 1000; 
-            if (data.type === 'answered') {
-                duration = 10 * 60 * 1000; 
-            }
+            if (data.type === 'answered') { duration = 10 * 60 * 1000; } // 답변 핀은 10분
 
             const timeLeft = duration - (Date.now() - createdTime);
             if (timeLeft <= 0) return; 
@@ -395,34 +409,24 @@
             let colorClass = ''; 
             let displayText = data.message;
 
-            if (data.type === 'question') {
-                colorClass = 'label-white'; 
-            } else if (data.type === 'answered') {
-                colorClass = 'label-green'; // ★ 초록색 핀
-                displayText = "✅ 답변 도착!"; 
-            } else if (data.type === 'discount') colorClass = 'label-red'; 
+            if (data.type === 'question') { colorClass = 'label-white'; } 
+            else if (data.type === 'answered') { colorClass = 'label-green'; displayText = "✅ 답변 도착!"; } 
+            else if (data.type === 'discount') colorClass = 'label-red'; 
             else if (data.type === 'fresh') colorClass = 'label-yellow'; 
             else colorClass = 'label-blue';
             
             const displayMsg = `[${data.storeName || '가게'}]<br>${displayText}`;
-            
             const marker = L.marker([data.lat, data.lng]).addTo(map);
             marker.bindTooltip(displayMsg, { permanent: true, direction: 'top', className: `custom-label ${colorClass}`, offset: [0, -10] }).openTooltip();
             
             let popupContent = `<div style="text-align:center; position:relative;">`;
             
-            // ★ 답변 완료 핀이면 내용 공개
             if (data.type === 'answered') {
                 popupContent += `<b style="color:#10B981;">💌 도착한 답변:</b><br>`;
-                if (data.answerPhoto) {
-                    popupContent += `<img src="${data.answerPhoto}" style="width:100%; max-width:200px; border-radius:8px; margin-top:5px;"><br>`;
-                }
-                if (data.answerText) {
-                    popupContent += `<p style="background:#f3f4f6; padding:8px; border-radius:8px; margin-top:5px; font-size:13px;">"${data.answerText}"</p>`;
-                }
+                if (data.answerPhoto) { popupContent += `<img src="${data.answerPhoto}" style="width:100%; max-width:200px; border-radius:8px; margin-top:5px;"><br>`; }
+                if (data.answerText) { popupContent += `<p style="background:#f3f4f6; padding:8px; border-radius:8px; margin-top:5px; font-size:13px;">"${data.answerText}"</p>`; }
                 popupContent += `<small style="color:#888;">by 익명의 행인</small>`;
             } else {
-                // 일반 핀 내용
                 popupContent += `
                     <button class="btn-report" onclick="reportPin('${data._id}')">🚨 신고</button>
                     <b id="msg-${data._id}">${data.message}</b>
@@ -432,11 +436,9 @@
                 `;
             }
 
-            // 버튼 표시 로직
             if ((myRole === 'host' && data.storeName === myStoreName) || (myRole === 'guest' && data.username === myUsername)) { 
                 popupContent += `<button class="delete-btn" onclick="deletePin('${data._id}')">🗑 삭제하기</button>`; 
             }
-            // 질문 핀이고, 내가 쓴 게 아니면 -> 답변 버튼 보이기
             if (myRole === 'guest' && data.type === 'question' && data.username !== myUsername) {
                 popupContent += `<button class="btn-text" onclick="answerWithText('${data._id}')">✍️ 텍스트로 제보 (+100 BP)</button>`;
                 popupContent += `<button class="btn-camera" onclick="triggerCamera('${data._id}')">📸 사진으로 인증 (+500 BP)</button>`;
@@ -445,8 +447,6 @@
             
             marker.bindPopup(popupContent);
             if(data._id) markers[data._id] = marker; 
-            
-            // 남은 시간 뒤에 지도에서 핀 제거
             setTimeout(() => { if(markers[data._id]) { map.removeLayer(marker); delete markers[data._id]; } }, timeLeft);
         }
     </script>
