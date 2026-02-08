@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>BluePin V13.0 (Real Sound) 🎵</title>
+    <title>BluePin V13.1 (Sound Pay Optimized) 🎵</title>
     
     <link rel="icon" href="/logo.png">
     <link rel="apple-touch-icon" href="/logo.png">
@@ -169,6 +169,11 @@
 
         const statusEl = document.getElementById('status-indicator');
         
+        // ★ [Sound Pay 최적화] 오디오 객체를 전역 변수로 미리 생성 (Pre-loading)
+        // 사용자가 버튼을 누르기 전에 브라우저가 파일을 미리 다운로드 받아둡니다.
+        const brandSound = new Audio('/brand_sound.mp3');
+        brandSound.preload = 'auto'; // 핵심: 자동 로드 설정
+
         // 스플래시 화면 
         window.onload = function() {
             setTimeout(() => {
@@ -178,15 +183,16 @@
             }, 2000);
         };
 
-        // ★ [Sound Pay: Real MP3] 실제 MP3 파일 재생으로 변경
+        // ★ [Sound Pay 실행 함수 수정]
         function playBrandSound() {
-            // brand_sound.mp3 파일이 있으면 재생, 없으면(에러나면) 조용히 넘어감
             try {
-                const audio = new Audio('/brand_sound.mp3');
-                audio.volume = 1.0;
-                audio.play().catch(e => console.log("Audio play failed (user interaction needed):", e));
+                brandSound.volume = 1.0;
+                brandSound.currentTime = 0; // 연속 클릭 시 처음부터 다시 재생
+                brandSound.play().catch(e => {
+                    console.log("Audio play failed (Autoplay policy):", e);
+                });
             } catch (e) {
-                console.log("Audio file not found or error");
+                console.log("Audio file error");
             }
         }
 
@@ -281,7 +287,7 @@
             triggerHaptic();
             if(!confirm("1000 BP를 사용하여 혜택을 받으시겠습니까?")) return;
             
-            // ★ 소리 재생 (MP3)
+            // ★ 소리 재생 호출
             playBrandSound(); 
 
             const overlay = document.getElementById('flash-overlay'); 
