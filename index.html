@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>BluePin V12.3 🎵</title>
+    <title>BluePin V12.4 🎵</title>
     
     <link rel="icon" href="/logo.png">
     <link rel="apple-touch-icon" href="/logo.png">
@@ -182,7 +182,7 @@
             }, 2000);
         };
 
-        // ★ [Audio Tuning V12.3] 20대 여성의 경쾌한 목소리
+        // ★ [Audio Tuning V12.4] 10대~20대 여성의 밝고 높은 톤
         function playBrandSound() {
             if ('speechSynthesis' in window) {
                 window.speechSynthesis.cancel();
@@ -191,14 +191,13 @@
                 const msg = new SpeechSynthesisUtterance("BluePin!");
                 msg.lang = 'en-US'; 
                 
-                // 튜닝값: 피치 높이고(여성), 속도 1.2배(경쾌하지만 또박또박)
-                msg.rate = 1.2;     // 1.5는 너무 빠름 -> 1.2로 조정 (0.1초 늘어난 효과)
-                msg.pitch = 1.4;    // 1.0은 낮음 -> 1.4로 높여서 젊고 밝은 톤
+                // ★ 핵심 튜닝: 피치를 대폭 높여서 젊은 느낌 + 속도감
+                msg.rate = 1.3;     // 1.2보다 살짝 빠르게
+                msg.pitch = 1.6;    // 1.4보다 더 높게 (High-Teen 감성)
                 msg.volume = 1.0;
                 
-                // 여성 목소리 찾기 (Samantha, Zira, Google US English 등)
+                // 여성 목소리 찾기 (Google US English, Samantha 등)
                 const voices = window.speechSynthesis.getVoices();
-                // 우선순위: 이름에 'female'이나 'Samantha', 'Google US English'가 들어간 것 찾기
                 const targetVoice = voices.find(v => v.name.includes('Google US English')) 
                                  || voices.find(v => v.name.includes('Samantha'))
                                  || voices.find(v => v.name.includes('Female'))
