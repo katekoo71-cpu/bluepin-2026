@@ -292,11 +292,16 @@ app.get('/admin', (req, res) => {
 app.post('/admin-data', (req, res) => {
     const { key } = req.body;
     if (key !== ADMIN_KEY) return res.json({ success: false, message: "권한 없음" });
-    const reportedUsers = users
-        .filter(u => (u.reportCount || 0) > 0)
-        .map(u => ({ username: u.username, role: u.role, reportCount: u.reportCount || 0, banned: u.banned, shadowbanned: u.shadowbanned, reputation: u.reputation || 0 }));
+    const allUsers = users.map(u => ({
+        username: u.username,
+        role: u.role,
+        reportCount: u.reportCount || 0,
+        banned: u.banned,
+        shadowbanned: u.shadowbanned,
+        reputation: u.reputation || 0
+    }));
     const activePins = pins.map(p => ({ id: p.id, storeName: p.storeName, username: p.username, message: p.message, hidden: p.hidden }));
-    res.json({ success: true, reportedUsers, activePins });
+    res.json({ success: true, users: allUsers, activePins, threshold: REPORT_BAN_THRESHOLD });
 });
 
 app.post('/admin-unban', (req, res) => {
@@ -307,6 +312,32 @@ app.post('/admin-unban', (req, res) => {
     user.banned = false;
     user.shadowbanned = false;
     user.reportCount = 0;
+    pins.forEach(p => { if (p.username === username) p.hidden = false; });
+    res.json({ success: true });
+});
+
+app.post('/admin-user-update', (req, res) => {
+    const { key, username, banned, shadowbanned, reportCount } = req.body;
+    if (key !== ADMIN_KEY) return res.json({ success: false, message: "권한 없음" });
+    const user = users.find(u => u.username === username);
+    if (!user) return res.json({ success: false, message: "사용자 없음" });
+    if (typeof banned === 'boolean') user.banned = banned;
+    if (typeof shadowbanned === 'boolean') user.shadowbanned = shadowbanned;
+    if (Number.isFinite(parseInt(reportCount, 10))) user.reportCount = parseInt(reportCount, 10);
+    pins.forEach(p => {
+        if (p.username === username) {
+            p.hidden = user.shadowbanned === true;
+        }
+    });
+    res.json({ success: true });
+});
+
+app.post('/admin-pin-hide', (req, res) => {
+    const { key, pinId, hidden } = req.body;
+    if (key !== ADMIN_KEY) return res.json({ success: false, message: "권한 없음" });
+    const pin = pins.find(p => p.id === pinId || p._id === pinId);
+    if (!pin) return res.json({ success: false, message: "핀 없음" });
+    pin.hidden = !!hidden;
     res.json({ success: true });
 });
 

@@ -20,9 +20,11 @@
     <label>Admin Key</label>
     <input id="admin-key" placeholder="키 입력" />
     <button onclick="loadData()">불러오기</button>
+    <div style="font-size:12px; color:#666; margin-top:6px;" id="threshold-info"></div>
   </div>
   <div class="card">
-    <h3>신고된 사용자</h3>
+    <h3>사용자 관리</h3>
+    <input id="user-filter" placeholder="아이디 검색" oninput="renderUsers()" />
     <table id="users-table">
       <thead><tr><th>ID</th><th>Role</th><th>Report</th><th>Banned</th><th>Shadow</th><th>Rep</th><th>Action</th></tr></thead>
       <tbody></tbody>
@@ -31,32 +33,69 @@
   <div class="card">
     <h3>활성 핀</h3>
     <table id="pins-table">
-      <thead><tr><th>ID</th><th>Store</th><th>User</th><th>Message</th><th>Hidden</th></tr></thead>
+      <thead><tr><th>ID</th><th>Store</th><th>User</th><th>Message</th><th>Hidden</th><th>Action</th></tr></thead>
       <tbody></tbody>
     </table>
   </div>
   <script>
+    let cachedUsers = [];
+    let cachedPins = [];
+
     async function loadData() {
       const key = document.getElementById('admin-key').value;
       const res = await fetch('/admin-data', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ key }) });
       const data = await res.json();
       if (!data.success) return alert(data.message || '권한 없음');
+      cachedUsers = data.users || [];
+      cachedPins = data.activePins || [];
+      document.getElementById('threshold-info').innerText = `신고 누적 ${data.threshold}회 이상 시 자동 차단`;
+      renderUsers();
+      renderPins();
+    }
+
+    function renderUsers() {
+      const filter = (document.getElementById('user-filter').value || '').trim().toLowerCase();
       const utb = document.querySelector('#users-table tbody');
       utb.innerHTML = '';
-      data.reportedUsers.forEach(u => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${u.username}</td><td>${u.role}</td><td>${u.reportCount}</td><td>${u.banned}</td><td>${u.shadowbanned}</td><td>${u.reputation}</td>
-        <td><button onclick="unban('${u.username}')">복구</button></td>`;
-        utb.appendChild(tr);
-      });
+      cachedUsers
+        .filter(u => !filter || (u.username || '').toLowerCase().includes(filter))
+        .forEach(u => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td>${u.username}</td><td>${u.role}</td><td>${u.reportCount}</td><td>${u.banned}</td><td>${u.shadowbanned}</td><td>${u.reputation}</td>
+          <td>
+            <button onclick="setUser('${u.username}', false, false, 0)">복구</button>
+            <button onclick="setUser('${u.username}', true, true, ${u.reportCount})">차단</button>
+            <button onclick="setUser('${u.username}', ${u.banned}, true, ${u.reportCount})">Shadow</button>
+          </td>`;
+          utb.appendChild(tr);
+        });
+    }
+
+    function renderPins() {
       const ptb = document.querySelector('#pins-table tbody');
       ptb.innerHTML = '';
-      data.activePins.forEach(p => {
+      cachedPins.forEach(p => {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${p.id}</td><td>${p.storeName || ''}</td><td>${p.username || ''}</td><td>${p.message || ''}</td><td>${p.hidden}</td>`;
+        tr.innerHTML = `<td>${p.id}</td><td>${p.storeName || ''}</td><td>${p.username || ''}</td><td>${p.message || ''}</td><td>${p.hidden}</td>
+        <td><button onclick="hidePin('${p.id}', ${!p.hidden})">${p.hidden ? '노출' : '숨김'}</button></td>`;
         ptb.appendChild(tr);
       });
     }
+
+    async function setUser(username, banned, shadowbanned, reportCount) {
+      const key = document.getElementById('admin-key').value;
+      const res = await fetch('/admin-user-update', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ key, username, banned, shadowbanned, reportCount }) });
+      const data = await res.json();
+      if (data.success) loadData(); else alert(data.message || '실패');
+    }
+
+    async function hidePin(pinId, hidden) {
+      const key = document.getElementById('admin-key').value;
+      const res = await fetch('/admin-pin-hide', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ key, pinId, hidden }) });
+      const data = await res.json();
+      if (data.success) loadData(); else alert(data.message || '실패');
+    }
+
     async function unban(username) {
       const key = document.getElementById('admin-key').value;
       const res = await fetch('/admin-unban', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ key, username }) });

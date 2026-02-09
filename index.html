@@ -125,7 +125,7 @@
         .btn-camera { width:100%; background:#10B981; color:white; border:none; padding:12px; border-radius:8px; margin-top:5px; cursor:pointer; font-weight:bold; font-size:14px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
         .btn-text { width:100%; background:#3B82F6; color:white; border:none; padding:8px; border-radius:8px; margin-top:5px; cursor:pointer; font-weight:bold; font-size:12px; opacity: 0.9; }
         .btn-translate { font-size: 11px; color: #666; background: #f3f4f6; border: 1px solid #ddd; padding: 3px 8px; border-radius: 12px; cursor: pointer; margin-top: 5px; }
-        .btn-report { font-size: 9px; color: #EF4444; background: white; border: 1px solid #EF4444; padding: 2px 5px; border-radius: 10px; cursor: pointer; position:absolute; bottom:5px; right:5px; opacity: 0.8; }
+        .btn-report { font-size: 9px; color: #EF4444; background: white; border: 1px solid #EF4444; padding: 2px 6px; border-radius: 10px; cursor: pointer; opacity: 0.8; }
         
         /* 질문 모달 */
         .ask-option { display: flex; gap: 10px; margin-top: 15px; }
@@ -136,6 +136,9 @@
         .ask-label { font-size: 10px; margin-top: 2px; color: #333; }
         .redeem-quick { display:flex; gap:8px; margin-top:6px; }
         .redeem-quick button { flex:1; border:1px solid #ddd; background:#fff; border-radius:8px; padding:6px 0; font-size:12px; }
+        .popup-content { text-align:center; position:relative; max-width:240px; }
+        .popup-message { font-size:13px; line-height:1.35; word-break: keep-all; }
+        .popup-actions { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:6px; }
 
         .leaflet-tooltip { display: none !important; border: 2px solid #333; border-radius: 8px; font-weight: bold; z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
         .map-zoomed-in .leaflet-tooltip { display: block !important; }
@@ -577,16 +580,17 @@
             const marker = L.marker([data.lat, data.lng], { icon: iconToUse }).addTo(map);
             marker.bindTooltip(`[${data.storeName || '가게'}]<br>${displayText} ${rewardBadge}`, { permanent: true, direction: 'top', className: `custom-label ${colorClass}`, offset: [0, -54] }).openTooltip();
             
-            let popupContent = `<div style="text-align:center; position:relative;">`;
+            let popupContent = `<div class="popup-content">`;
             if (data.type === 'answered') {
                 popupContent += `<b style="color:#10B981;">💌 도착한 답변:</b><br>`;
                 if (data.answerPhoto) popupContent += `<img src="${data.answerPhoto}" style="width:100%; max-width:200px; border-radius:8px; margin-top:5px;"><br>`;
-                if (data.answerText) popupContent += `<p style="background:#f3f4f6; padding:8px; border-radius:8px; margin-top:5px; font-size:13px;">"${data.answerText}"</p>`;
+                if (data.answerText) popupContent += `<p class="popup-message" style="background:#f3f4f6; padding:8px; border-radius:8px; margin-top:5px;">"${data.answerText}"</p>`;
                 if (myRole === 'guest' && data.username === myUsername && !data.satisfied) {
                     popupContent += `<button class="btn-text" onclick="satisfyAnswer('${data._id}')">👍 만족</button>`;
                 }
             } else {
-                popupContent += `<b id="msg-${data._id}">${data.message}</b><br><button id="trans-btn-${data._id}" class="btn-translate" onclick="translatePin('${data._id}', '${data.message}')">🌐 English</button><button class="btn-report" onclick="reportPin('${data._id}')">🚨 신고</button><br>`;
+                popupContent += `<div class="popup-message" id="msg-${data._id}">${data.message}</div>`;
+                popupContent += `<div class="popup-actions"><button id="trans-btn-${data._id}" class="btn-translate" onclick="translatePin('${data._id}', '${data.message}')">🌐 English</button><button class="btn-report" onclick="reportPin('${data._id}')">🚨 신고</button></div>`;
             }
 
             if ((myRole === 'host' && data.storeName === myStoreName) || (myRole === 'guest' && data.username === myUsername)) popupContent += `<button class="delete-btn" onclick="deletePin('${data._id}')">🗑 삭제하기</button>`; 
