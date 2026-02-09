@@ -350,7 +350,11 @@
             socket = io();
             socket.on('connect', () => { statusEl.innerText = "🟢 실시간 연결됨"; statusEl.style.background = "#10B981"; });
             socket.on('disconnect', () => { statusEl.innerText = "🔴 연결 끊김"; statusEl.style.background = "#EF4444"; });
-            socket.on('loadPins', (pins) => { pins.forEach(pin => addMarkerToMap(pin)); });
+            socket.on('loadPins', (pins) => {
+                Object.values(markers).forEach(m => map.removeLayer(m));
+                markers = {};
+                pins.forEach(pin => addMarkerToMap(pin));
+            });
             socket.on('newSignal', (data) => {
                 addMarkerToMap(data);
                 if (myRole === 'guest' && data.pinOwnerRole === 'host' && data.pinOwnerTier === 'Pro' && myLatLng) {
@@ -455,6 +459,7 @@
             const data = await res.json(); 
             if(data.success) { 
                 myRole = data.role; myUsername = id; myStoreName = data.storeName; myTier = data.tier; document.getElementById('login-overlay').style.display = 'none'; document.getElementById('menu-before-login').style.display = 'none'; document.getElementById('menu-after-login').style.display = 'flex'; 
+                socket.emit('identify', myUsername);
                 canPost = !data.banned;
                 if (data.banned) alert("신고로 인해 작성 권한이 제한되었습니다. 운영자에게 문의해주세요.");
                 if (myRole === 'host') {

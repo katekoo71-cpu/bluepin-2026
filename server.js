@@ -19,6 +19,12 @@ let users = [];
 
 const MIN_TEXT_LEN = 5;
 const MAX_TEXT_LEN = 15;
+const REPORT_BAN_THRESHOLD = 3;
+const ADMIN_KEY = process.env.ADMIN_KEY || "bluepin-admin";
+const BAD_WORDS = [
+    "시발","씨발","ㅅㅂ","병신","좆","미친","개새","fuck","shit","sex","porn",
+    "도박","토토","바카라","카지노","대출","성인","성인광고"
+];
 
 // 히스토리 기록
 function logHistory(user, type, amount, desc) {
@@ -40,6 +46,11 @@ function isValidText(text) {
     return t.length >= MIN_TEXT_LEN && t.length <= MAX_TEXT_LEN;
 }
 
+function hasBadWord(text) {
+    const t = normalizeText(text).toLowerCase();
+    return BAD_WORDS.some(w => t.includes(w));
+}
+
 app.get('/', (req, res) => { res.sendFile(path.join(__dirname, 'index.html')); });
 
 // 회원가입
@@ -55,7 +66,9 @@ app.post('/register', (req, res) => {
         tier: role === 'host' ? 'Free' : null,
         history: [],
         reputation: 0,
-        banned: false
+        banned: false,
+        reportCount: 0,
+        shadowbanned: false
     };
     if (role === 'guest') logHistory(newUser, 'earn', 1000, '회원가입 축하금');
     users.push(newUser);
@@ -67,7 +80,7 @@ app.post('/login', (req, res) => {
     const { username, password } = req.body;
     const user = users.find(u => u.username === username && u.password === password);
     if (user) {
-        res.json({ success: true, role: user.role, storeName: user.storeName, points: user.points, tier: user.tier, reputation: user.reputation, banned: user.banned });
+        res.json({ success: true, role: user.role, storeName: user.storeName, points: user.points, tier: user.tier, reputation: user.reputation, banned: user.banned, shadowbanned: user.shadowbanned, reportCount: user.reportCount });
     } else {
         res.json({ success: false, message: "ID 또는 비번 틀림" });
     }
@@ -78,7 +91,7 @@ app.post('/my-info', (req, res) => {
     const { username } = req.body;
     const user = users.find(u => u.username === username);
     if (user) {
-        res.json({ success: true, user: { username: user.username, role: user.role, storeName: user.storeName, points: user.points, tier: user.tier, history: user.history, reputation: user.reputation, banned: user.banned } });
+        res.json({ success: true, user: { username: user.username, role: user.role, storeName: user.storeName, points: user.points, tier: user.tier, history: user.history, reputation: user.reputation, banned: user.banned, shadowbanned: user.shadowbanned, reportCount: user.reportCount } });
     } else {
         res.json({ success: false });
     }
@@ -123,6 +136,7 @@ app.post('/answer-mission', (req, res) => {
     
     if (pin && user) {
         if (user.banned) return res.json({ success: false, message: "작성 권한이 제한되었습니다." });
+        if (answerText && hasBadWord(answerText)) return res.json({ success: false, message: "작성할 수 없는 단어가 포함되어 있습니다." });
         if (pin.rewardType === 'photo' && !photo) {
             return res.json({ success: false, message: "사진 답변만 가능합니다." });
         }
@@ -158,7 +172,14 @@ io.on('connection', (socket) => {
         const duration = p.type === 'answered' ? 10 * 60000 : 30 * 60000;
         return (now - p.createdAt) < duration;
     });
-    socket.emit('loadPins', activePins);
+    const publicPins = activePins.filter(p => !p.hidden);
+    socket.emit('loadPins', publicPins);
+
+    socket.on('identify', (username) => {
+        socket.username = username;
+        const userPins = activePins.filter(p => !p.hidden || p.username === username);
+        socket.emit('loadPins', userPins);
+    });
 
     // ★ [핵심 수정] 핀 생성 로직 (점주는 무료, 손님은 유료)
     socket.on('bossSignal', (data) => {
@@ -173,6 +194,10 @@ io.on('connection', (socket) => {
         const messageText = normalizeText(data.message);
         if (!isValidText(messageText)) {
             socket.emit('errorMsg', "문구는 5~15자로 입력해주세요.");
+            return;
+        }
+        if (hasBadWord(messageText)) {
+            socket.emit('errorMsg', "작성할 수 없는 단어가 포함되어 있습니다.");
             return;
         }
 
@@ -210,11 +235,17 @@ io.on('connection', (socket) => {
             rewardType: (data.type === 'question') ? ((data.rewardType === 'photo') ? 'photo' : 'text') : null,
             pinOwnerRole: data.pinOwnerRole || user.role,
             redeemPoints: redeemPoints,
-            pinOwnerTier: user.tier || null
+            pinOwnerTier: user.tier || null,
+            hidden: user.shadowbanned === true,
+            satisfied: false
         };
         pins.push(newPin);
         
-        io.emit('newSignal', newPin);
+        if (user.shadowbanned) {
+            socket.emit('newSignal', newPin);
+        } else {
+            io.emit('newSignal', newPin);
+        }
     });
 
     socket.on('deletePin', (pinId) => {
@@ -228,7 +259,14 @@ io.on('connection', (socket) => {
         io.emit('removePin', pinId);
         if (target && target.username) {
             const targetUser = users.find(u => u.username === target.username);
-            if (targetUser) targetUser.banned = true;
+            if (targetUser) {
+                targetUser.reportCount = (targetUser.reportCount || 0) + 1;
+                targetUser.shadowbanned = true;
+                if (targetUser.reportCount >= REPORT_BAN_THRESHOLD) {
+                    targetUser.banned = true;
+                    targetUser.shadowbanned = true;
+                }
+            }
         }
     });
 });
@@ -245,6 +283,31 @@ app.post('/satisfy', (req, res) => {
     answerUser.reputation = (answerUser.reputation || 0) + 1;
     pin.satisfied = true;
     res.json({ success: true, reputation: answerUser.reputation });
+});
+
+app.get('/admin', (req, res) => {
+    res.sendFile(path.join(__dirname, 'admin.html'));
+});
+
+app.post('/admin-data', (req, res) => {
+    const { key } = req.body;
+    if (key !== ADMIN_KEY) return res.json({ success: false, message: "권한 없음" });
+    const reportedUsers = users
+        .filter(u => (u.reportCount || 0) > 0)
+        .map(u => ({ username: u.username, role: u.role, reportCount: u.reportCount || 0, banned: u.banned, shadowbanned: u.shadowbanned, reputation: u.reputation || 0 }));
+    const activePins = pins.map(p => ({ id: p.id, storeName: p.storeName, username: p.username, message: p.message, hidden: p.hidden }));
+    res.json({ success: true, reportedUsers, activePins });
+});
+
+app.post('/admin-unban', (req, res) => {
+    const { key, username } = req.body;
+    if (key !== ADMIN_KEY) return res.json({ success: false, message: "권한 없음" });
+    const user = users.find(u => u.username === username);
+    if (!user) return res.json({ success: false, message: "사용자 없음" });
+    user.banned = false;
+    user.shadowbanned = false;
+    user.reportCount = 0;
+    res.json({ success: true });
 });
 
 const PORT = process.env.PORT || 3000;

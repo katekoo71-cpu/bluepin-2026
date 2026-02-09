@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BluePin Admin</title>
+  <style>
+    body { font-family: Arial, sans-serif; background:#f7f7f7; margin:0; padding:20px; }
+    h1 { margin:0 0 16px; }
+    .card { background:#fff; border-radius:12px; padding:16px; margin-bottom:16px; box-shadow:0 4px 12px rgba(0,0,0,0.08); }
+    input { width:100%; padding:10px; margin:8px 0; border:1px solid #ddd; border-radius:8px; }
+    button { padding:8px 12px; border:none; border-radius:8px; background:#111; color:#fff; cursor:pointer; }
+    table { width:100%; border-collapse: collapse; }
+    th, td { padding:8px; border-bottom:1px solid #eee; text-align:left; font-size:13px; }
+  </style>
+</head>
+<body>
+  <h1>BluePin Admin</h1>
+  <div class="card">
+    <label>Admin Key</label>
+    <input id="admin-key" placeholder="키 입력" />
+    <button onclick="loadData()">불러오기</button>
+  </div>
+  <div class="card">
+    <h3>신고된 사용자</h3>
+    <table id="users-table">
+      <thead><tr><th>ID</th><th>Role</th><th>Report</th><th>Banned</th><th>Shadow</th><th>Rep</th><th>Action</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <div class="card">
+    <h3>활성 핀</h3>
+    <table id="pins-table">
+      <thead><tr><th>ID</th><th>Store</th><th>User</th><th>Message</th><th>Hidden</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <script>
+    async function loadData() {
+      const key = document.getElementById('admin-key').value;
+      const res = await fetch('/admin-data', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ key }) });
+      const data = await res.json();
+      if (!data.success) return alert(data.message || '권한 없음');
+      const utb = document.querySelector('#users-table tbody');
+      utb.innerHTML = '';
+      data.reportedUsers.forEach(u => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${u.username}</td><td>${u.role}</td><td>${u.reportCount}</td><td>${u.banned}</td><td>${u.shadowbanned}</td><td>${u.reputation}</td>
+        <td><button onclick="unban('${u.username}')">복구</button></td>`;
+        utb.appendChild(tr);
+      });
+      const ptb = document.querySelector('#pins-table tbody');
+      ptb.innerHTML = '';
+      data.activePins.forEach(p => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${p.id}</td><td>${p.storeName || ''}</td><td>${p.username || ''}</td><td>${p.message || ''}</td><td>${p.hidden}</td>`;
+        ptb.appendChild(tr);
+      });
+    }
+    async function unban(username) {
+      const key = document.getElementById('admin-key').value;
+      const res = await fetch('/admin-unban', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ key, username }) });
+      const data = await res.json();
+      if (data.success) loadData(); else alert(data.message || '실패');
+    }
+  </script>
+</body>
+</html>
