@@ -20,5 +20,6 @@
   "withdrawals": [],
   "pins": [],
   "stores": [],
-  "trust_reports": []
+  "trust_reports": [],
+  "push_subscriptions": []
 }

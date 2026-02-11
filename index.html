@@ -499,12 +499,21 @@
         let currentAnswererId = null;
         let answerReviewMode = false;
         let authToken = null;
+        let pushEndpoint = null;
 
         function formatNumber(n) {
             if (n === null || n === undefined) return '0';
             const num = Number(n);
             if (Number.isNaN(num)) return '0';
             return num.toLocaleString('ko-KR');
+        }
+        function urlBase64ToUint8Array(base64String) {
+            const padding = '='.repeat((4 - base64String.length % 4) % 4);
+            const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+            const rawData = atob(base64);
+            const outputArray = new Uint8Array(rawData.length);
+            for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
+            return outputArray;
         }
         let askModeV2 = false;
         const MIN_TEXT_LEN = 5;
@@ -736,10 +745,12 @@
                     alert(`환영합니다! 현재 포인트: ${formatNumber(data.points)} BP`);
                     document.getElementById('btn-ask-question').style.display = canPost ? 'block' : 'none';
                     document.getElementById('btn-wallet').style.display = 'block';
+                    initPush();
                 }
                 if (navigator.geolocation) navigator.geolocation.getCurrentPosition(pos => {
                     myLatLng = { lat: pos.coords.latitude, lng: pos.coords.longitude };
                     map.setView([pos.coords.latitude, pos.coords.longitude], 18);
+                    if (authToken) updatePushLocation(pos.coords.latitude, pos.coords.longitude);
                 });
                 setTimeout(() => map.invalidateSize(), 100); 
             } else { alert(data.message); } 
@@ -1030,6 +1041,49 @@
             } catch (error) {
                 console.error('신고 오류:', error);
             }
+        }
+
+        async function initPush() {
+            if (!('serviceWorker' in navigator) || !authToken) return;
+            try {
+                const keyRes = await fetch('/api/push/public-key');
+                const keyData = await keyRes.json();
+                if (!keyData.success) return;
+                const registration = await navigator.serviceWorker.register('/sw.js');
+                let subscription = await registration.pushManager.getSubscription();
+                if (!subscription) {
+                    const permission = await Notification.requestPermission();
+                    if (permission !== 'granted') return;
+                    subscription = await registration.pushManager.subscribe({
+                        userVisibleOnly: true,
+                        applicationServerKey: urlBase64ToUint8Array(keyData.publicKey)
+                    });
+                }
+                pushEndpoint = subscription.endpoint;
+                await fetch('/api/push/subscribe', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'x-auth-token': authToken },
+                    body: JSON.stringify({
+                        subscription: subscription,
+                        lat: myLatLng ? myLatLng.lat : null,
+                        lng: myLatLng ? myLatLng.lng : null,
+                        authToken: authToken
+                    })
+                });
+            } catch (e) {
+                console.log(e);
+            }
+        }
+
+        async function updatePushLocation(lat, lng) {
+            if (!authToken) return;
+            try {
+                await fetch('/api/push/update-location', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'x-auth-token': authToken },
+                    body: JSON.stringify({ lat, lng, authToken: authToken })
+                });
+            } catch (e) {}
         }
         function toggleProMode() { const isPro = document.getElementById('pro-switch').checked; const inputField = document.getElementById('promo-text'); inputField.disabled = !isPro; if (isPro) { inputField.placeholder = "입력하세요"; inputField.style.background = "white"; } else { inputField.placeholder = "🔒 유료"; inputField.value = ""; inputField.style.background = "#f3f4f6"; } }
         function handlePromo(type, defaultText) {

@@ -9,9 +9,12 @@ const fs = require('fs');
 const axios = require('axios');
 const Filter = require('bad-words');
 const crypto = require('crypto');
+const webpush = require('web-push');
 
 const TOSS_SECRET_KEY = process.env.TOSS_SECRET_KEY || '';
 const TOSS_API_BASE = 'https://api.tosspayments.com';
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || '';
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || '';
 
 function getTossHeaders() {
     const encoded = Buffer.from(`${TOSS_SECRET_KEY}:`).toString('base64');
@@ -35,7 +38,7 @@ function loadDB() {
         const raw = fs.readFileSync(DB_PATH, 'utf8');
         return JSON.parse(raw);
     } catch (e) {
-        return { users: [], questions: [], answers: [], escrow: [], transactions: [], withdrawals: [], pins: [], stores: [], trust_reports: [] };
+        return { users: [], questions: [], answers: [], escrow: [], transactions: [], withdrawals: [], pins: [], stores: [], trust_reports: [], push_subscriptions: [] };
     }
 }
 function saveDB() {
@@ -43,6 +46,7 @@ function saveDB() {
 }
 
 let db = loadDB();
+db.push_subscriptions = db.push_subscriptions || [];
 // 기존 로직 호환
 let pins = db.pins;
 let users = db.users;
@@ -97,6 +101,40 @@ function isValidAmount(amount) {
     return Number.isFinite(amount) && amount > 0 && Number.isInteger(amount);
 }
 
+if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
+    webpush.setVapidDetails('mailto:admin@bluepin.app', VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+} else {
+    console.warn('⚠️ VAPID keys are not set. Web push will be disabled.');
+}
+
+async function sendPushToNearby(question) {
+    if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) return;
+    const subs = db.push_subscriptions || [];
+    const payload = JSON.stringify({
+        title: 'BluePin',
+        body: `${question.text} (+${question.amount}원)`,
+        url: '/'
+    });
+    const toRemove = [];
+    for (const sub of subs) {
+        if (!Number.isFinite(sub.lat) || !Number.isFinite(sub.lng)) continue;
+        if (sub.userId && sub.userId === question.asker_id) continue;
+        const distance = calculateDistance(sub.lat, sub.lng, question.lat, question.lng);
+        if (distance > 500) continue;
+        try {
+            await webpush.sendNotification(sub.subscription, payload);
+        } catch (e) {
+            if (e.statusCode === 410 || e.statusCode === 404) {
+                toRemove.push(sub.endpoint);
+            }
+        }
+    }
+    if (toRemove.length) {
+        db.push_subscriptions = db.push_subscriptions.filter(s => !toRemove.includes(s.endpoint));
+        saveDB();
+    }
+}
+
 // 거리 계산 (Haversine formula)
 function calculateDistance(lat1, lon1, lat2, lon2) {
     const R = 6371e3; // 지구 반지름 (미터)
@@ -114,6 +152,77 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 }
 
 app.get('/', (req, res) => { res.sendFile(path.join(__dirname, 'index.html')); });
+
+// Web Push public key
+app.get('/api/push/public-key', (req, res) => {
+    if (!VAPID_PUBLIC_KEY) return res.status(500).json({ success: false, error: 'VAPID 키 없음' });
+    res.json({ success: true, publicKey: VAPID_PUBLIC_KEY });
+});
+
+// Push 구독 등록
+app.post('/api/push/subscribe', (req, res) => {
+    try {
+        const authUser = getAuthUser(req);
+        if (!authUser) return res.status(401).json({ success: false, error: '인증이 필요합니다' });
+        const { subscription, lat, lng } = req.body;
+        if (!subscription || !subscription.endpoint) {
+            return res.status(400).json({ success: false, error: '구독 정보가 올바르지 않습니다' });
+        }
+        const existing = db.push_subscriptions.find(s => s.endpoint === subscription.endpoint);
+        const record = {
+            userId: authUser.id,
+            role: authUser.role,
+            endpoint: subscription.endpoint,
+            subscription: subscription,
+            lat: Number.isFinite(parseFloat(lat)) ? parseFloat(lat) : null,
+            lng: Number.isFinite(parseFloat(lng)) ? parseFloat(lng) : null,
+            updated_at: new Date().toISOString()
+        };
+        if (existing) {
+            Object.assign(existing, record);
+        } else {
+            db.push_subscriptions.push(record);
+        }
+        saveDB();
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// Push 구독 해제
+app.post('/api/push/unsubscribe', (req, res) => {
+    try {
+        const authUser = getAuthUser(req);
+        if (!authUser) return res.status(401).json({ success: false, error: '인증이 필요합니다' });
+        const { endpoint } = req.body;
+        db.push_subscriptions = db.push_subscriptions.filter(s => s.endpoint !== endpoint);
+        saveDB();
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// 위치 업데이트
+app.post('/api/push/update-location', (req, res) => {
+    try {
+        const authUser = getAuthUser(req);
+        if (!authUser) return res.status(401).json({ success: false, error: '인증이 필요합니다' });
+        const { lat, lng } = req.body;
+        db.push_subscriptions.forEach(s => {
+            if (s.userId === authUser.id) {
+                s.lat = Number.isFinite(parseFloat(lat)) ? parseFloat(lat) : s.lat;
+                s.lng = Number.isFinite(parseFloat(lng)) ? parseFloat(lng) : s.lng;
+                s.updated_at = new Date().toISOString();
+            }
+        });
+        saveDB();
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
 
 // 질문 생성 API
 app.post('/api/questions/create', async (req, res) => {
@@ -208,6 +317,7 @@ app.get('/payment/success', async (req, res) => {
                 question: question,
                 message: `근처에서 질문! +${amount}원`
             });
+            sendPushToNearby(question);
 
             return res.send('<h1>✅ 질문 등록 완료!</h1><p><a href="/">돌아가기</a></p>');
         }
