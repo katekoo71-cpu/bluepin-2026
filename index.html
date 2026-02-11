@@ -120,7 +120,7 @@
         .btn-red { background: #EF4444; } .btn-yellow { background: #F59E0B; } .btn-blue { background: #3B82F6; }
         
         #open-controls-btn { position: fixed; bottom: 30px; left: 20px; transform: none; background: #111; color: white; padding: 12px 24px; border-radius: 50px; font-weight: bold; border: none; z-index: 1500; display: none; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
-        #guest-ask-btn { position: fixed; bottom: 90px; right: 20px; width: 50px; height: 50px; border-radius: 50%; background: white; color: #333; border: 2px solid #ddd; font-size: 24px; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.2); z-index: 1500; cursor: pointer; display: none; }
+        #guest-ask-btn { display: none !important; }
         .delete-btn { width:100%; background:#EF4444; color:white; border:none; padding:8px; border-radius:5px; margin-top:5px; cursor:pointer; font-weight:bold; }
         .btn-camera { width:100%; background:#10B981; color:white; border:none; padding:12px; border-radius:8px; margin-top:5px; cursor:pointer; font-weight:bold; font-size:14px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
         .btn-text { width:100%; background:#3B82F6; color:white; border:none; padding:8px; border-radius:8px; margin-top:5px; cursor:pointer; font-weight:bold; font-size:12px; opacity: 0.9; }
@@ -779,7 +779,7 @@
                 } else {
                     document.getElementById('guest-wallet').style.display = 'flex';
                     document.getElementById('my-points').innerText = `${formatNumber(data.points)} BP`;
-                    document.getElementById('guest-ask-btn').style.display = canPost ? 'block' : 'none';
+                    document.getElementById('guest-ask-btn').style.display = 'none';
                     crosshairEl.style.display = 'none';
                     crosshairEl.classList.remove('pin-host');
                     alert(`환영합니다! 현재 포인트: ${formatNumber(data.points)} BP`);
