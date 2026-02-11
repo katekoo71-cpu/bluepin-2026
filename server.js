@@ -8,6 +8,7 @@ const cors = require('cors');
 const fs = require('fs');
 const axios = require('axios');
 const Filter = require('bad-words');
+const crypto = require('crypto');
 
 const TOSS_SECRET_KEY = process.env.TOSS_SECRET_KEY || '';
 const TOSS_API_BASE = 'https://api.tosspayments.com';
@@ -86,6 +87,16 @@ function findUserByIdOrUsername(idOrName) {
     return db.users.find(u => u.id === idOrName || u.username === idOrName) || null;
 }
 
+function getAuthUser(req) {
+    const token = req.headers['x-auth-token'] || req.body?.authToken || req.query?.authToken;
+    if (!token) return null;
+    return db.users.find(u => u.auth_token === token) || null;
+}
+
+function isValidAmount(amount) {
+    return Number.isFinite(amount) && amount > 0 && Number.isInteger(amount);
+}
+
 // 거리 계산 (Haversine formula)
 function calculateDistance(lat1, lon1, lat2, lon2) {
     const R = 6371e3; // 지구 반지름 (미터)
@@ -108,19 +119,31 @@ app.get('/', (req, res) => { res.sendFile(path.join(__dirname, 'index.html')); }
 app.post('/api/questions/create', async (req, res) => {
     try {
         const { userId, text, lat, lng, amount, type } = req.body;
+        const authUser = getAuthUser(req);
+        if (!authUser) return res.status(401).json({ success: false, error: '인증이 필요합니다' });
+        if (authUser.id !== userId && authUser.username !== userId) {
+            return res.status(403).json({ success: false, error: '권한 없음' });
+        }
+        if (typeof text !== 'string' || text.trim().length < 1) {
+            return res.status(400).json({ success: false, error: '질문을 입력해주세요' });
+        }
         if (filter.isProfane(text) || hasBadWord(text)) {
             return res.status(400).json({ success: false, error: '부적절한 단어가 포함되어 있습니다' });
         }
         const user = findUserByIdOrUsername(userId);
         const askerId = user ? user.id : userId;
         const questionId = `Q_${Date.now()}`;
+        const parsedAmount = parseInt(amount, 10);
+        if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+            return res.status(400).json({ success: false, error: '금액이 올바르지 않습니다' });
+        }
         const question = {
             id: questionId,
             asker_id: askerId,
             text: text,
             lat: parseFloat(lat),
             lng: parseFloat(lng),
-            amount: parseInt(amount),
+            amount: parsedAmount,
             type: type,
             status: 'payment_pending',
             created_at: new Date().toISOString(),
@@ -243,6 +266,9 @@ app.get('/api/questions/nearby', (req, res) => {
         const baseLat = parseFloat(lat);
         const baseLng = parseFloat(lng);
         const rad = parseInt(radius || 500, 10);
+        if (!Number.isFinite(baseLat) || !Number.isFinite(baseLng)) {
+            return res.status(400).json({ success: false, error: '위치 정보가 올바르지 않습니다' });
+        }
 
         const nearbyQuestions = db.questions.filter(q => {
             if (q.status !== 'open') return false;
@@ -267,6 +293,14 @@ app.get('/api/questions/nearby', (req, res) => {
 app.post('/api/answers/create', async (req, res) => {
     try {
         const { questionId, answererId, text, answererLat, answererLng } = req.body;
+        const authUser = getAuthUser(req);
+        if (!authUser) return res.status(401).json({ success: false, error: '인증이 필요합니다' });
+        if (authUser.id !== answererId && authUser.username !== answererId) {
+            return res.status(403).json({ success: false, error: '권한 없음' });
+        }
+        if (typeof text !== 'string' || text.trim().length < 1) {
+            return res.status(400).json({ success: false, error: '답변을 입력해주세요' });
+        }
         if (filter.isProfane(text) || hasBadWord(text)) {
             return res.status(400).json({ success: false, error: '부적절한 단어가 포함되어 있습니다' });
         }
@@ -281,8 +315,13 @@ app.post('/api/answers/create', async (req, res) => {
             });
         }
 
+        const parsedLat = parseFloat(answererLat);
+        const parsedLng = parseFloat(answererLng);
+        if (!Number.isFinite(parsedLat) || !Number.isFinite(parsedLng)) {
+            return res.status(400).json({ success: false, error: '위치 정보가 올바르지 않습니다' });
+        }
         const distance = calculateDistance(
-            parseFloat(answererLat), parseFloat(answererLng),
+            parsedLat, parsedLng,
             question.lat, question.lng
         );
         if (distance > 100) {
@@ -307,6 +346,7 @@ app.post('/api/answers/create', async (req, res) => {
             text: text,
             photo_url: null,
             status: 'pending',
+            liked_by: [],
             created_at: new Date().toISOString()
         };
 
@@ -335,6 +375,15 @@ app.post('/api/answers/create', async (req, res) => {
 app.post('/api/trust/report', (req, res) => {
     try {
         const { reporterId, reportedId, type, targetId, reason } = req.body;
+        const authUser = getAuthUser(req);
+        if (!authUser) return res.status(401).json({ success: false, error: '인증이 필요합니다' });
+        if (authUser.id !== reporterId && authUser.username !== reporterId) {
+            return res.status(403).json({ success: false, error: '권한 없음' });
+        }
+        const already = db.trust_reports.find(r => r.reporter_id === reporterId && r.target_id === targetId);
+        if (already) {
+            return res.status(400).json({ success: false, error: '이미 신고했습니다' });
+        }
         const report = {
             id: `REP_${Date.now()}`,
             reporter_id: reporterId,
@@ -383,14 +432,24 @@ app.post('/api/trust/report', (req, res) => {
 app.post('/api/trust/like', (req, res) => {
     try {
         const { userId, answerId } = req.body;
+        const authUser = getAuthUser(req);
+        if (!authUser) return res.status(401).json({ success: false, error: '인증이 필요합니다' });
+        if (authUser.id !== userId && authUser.username !== userId) {
+            return res.status(403).json({ success: false, error: '권한 없음' });
+        }
         const answer = db.answers.find(a => a.id === answerId);
         if (!answer) {
             return res.status(404).json({ success: false, error: '답변을 찾을 수 없습니다' });
+        }
+        if (!Array.isArray(answer.liked_by)) answer.liked_by = [];
+        if (answer.liked_by.includes(userId)) {
+            return res.status(400).json({ success: false, error: '이미 좋아요했습니다' });
         }
         const answerer = findUserByIdOrUsername(answer.answerer_id);
         if (!answerer) {
             return res.status(404).json({ success: false, error: '사용자를 찾을 수 없습니다' });
         }
+        answer.liked_by.push(userId);
         answerer.trust_score = (answerer.trust_score || 0) + 1;
         answer.status = 'approved';
 
@@ -406,24 +465,33 @@ app.post('/api/trust/like', (req, res) => {
 app.post('/api/wallet/convert', (req, res) => {
     try {
         const { userId, amount } = req.body;
+        const authUser = getAuthUser(req);
+        if (!authUser) return res.status(401).json({ success: false, error: '인증이 필요합니다' });
+        if (authUser.id !== userId && authUser.username !== userId) {
+            return res.status(403).json({ success: false, error: '권한 없음' });
+        }
         const user = findUserByIdOrUsername(userId);
         if (!user) {
             return res.status(404).json({ success: false, error: '사용자를 찾을 수 없습니다' });
         }
-        if ((user.cash_balance || 0) < amount) {
+        const parsedAmount = parseInt(amount, 10);
+        if (!isValidAmount(parsedAmount)) {
+            return res.status(400).json({ success: false, error: '금액이 올바르지 않습니다' });
+        }
+        if ((user.cash_balance || 0) < parsedAmount) {
             return res.status(400).json({ success: false, error: '캐시 잔액이 부족합니다' });
         }
 
-        user.cash_balance -= amount;
-        user.point_balance = (user.point_balance || 0) + amount;
+        user.cash_balance -= parsedAmount;
+        user.point_balance = (user.point_balance || 0) + parsedAmount;
 
         db.transactions.push({
             id: `TX_${Date.now()}`,
             user_id: userId,
             type: 'CASH_TO_POINT',
-            amount: amount,
-            cash_change: -amount,
-            point_change: amount,
+            amount: parsedAmount,
+            cash_change: -parsedAmount,
+            point_change: parsedAmount,
             description: '캐시→포인트 전환',
             timestamp: new Date().toISOString()
         });
@@ -440,26 +508,35 @@ app.post('/api/wallet/convert', (req, res) => {
 app.post('/api/wallet/withdraw', async (req, res) => {
     try {
         const { userId, amount } = req.body;
+        const authUser = getAuthUser(req);
+        if (!authUser) return res.status(401).json({ success: false, error: '인증이 필요합니다' });
+        if (authUser.id !== userId && authUser.username !== userId) {
+            return res.status(403).json({ success: false, error: '권한 없음' });
+        }
         const user = findUserByIdOrUsername(userId);
         if (!user) {
             return res.status(404).json({ success: false, error: '사용자를 찾을 수 없습니다' });
         }
-        if (amount < 5000) {
+        const parsedAmount = parseInt(amount, 10);
+        if (!isValidAmount(parsedAmount)) {
+            return res.status(400).json({ success: false, error: '금액이 올바르지 않습니다' });
+        }
+        if (parsedAmount < 5000) {
             return res.status(400).json({ success: false, error: '최소 출금 금액은 5,000원입니다' });
         }
-        if ((user.cash_balance || 0) < amount) {
+        if ((user.cash_balance || 0) < parsedAmount) {
             return res.status(400).json({ success: false, error: '캐시 잔액이 부족합니다' });
         }
         if (!user.bank_account) {
             return res.status(400).json({ success: false, error: '출금 계좌를 먼저 등록해주세요' });
         }
 
-        user.cash_balance -= amount;
+        user.cash_balance -= parsedAmount;
 
         const withdrawal = {
             id: `WD_${Date.now()}`,
             user_id: userId,
-            amount: amount,
+            amount: parsedAmount,
             bank_account: user.bank_account,
             bank_code: user.bank_code,
             status: 'completed',
@@ -472,8 +549,8 @@ app.post('/api/wallet/withdraw', async (req, res) => {
             id: `TX_${Date.now()}`,
             user_id: userId,
             type: 'CASH_WITHDRAW',
-            amount: -amount,
-            cash_change: -amount,
+            amount: -parsedAmount,
+            cash_change: -parsedAmount,
             point_change: 0,
             description: '현금 출금',
             timestamp: new Date().toISOString()
@@ -491,6 +568,11 @@ app.post('/api/wallet/withdraw', async (req, res) => {
 app.get('/api/wallet/:userId', (req, res) => {
     try {
         const { userId } = req.params;
+        const authUser = getAuthUser(req);
+        if (!authUser) return res.status(401).json({ success: false, error: '인증이 필요합니다' });
+        if (authUser.id !== userId && authUser.username !== userId) {
+            return res.status(403).json({ success: false, error: '권한 없음' });
+        }
         const user = findUserByIdOrUsername(userId);
         if (!user) {
             return res.status(404).json({ success: false, error: '사용자를 찾을 수 없습니다' });
@@ -547,7 +629,9 @@ app.post('/login', (req, res) => {
     const { username, password } = req.body;
     const user = users.find(u => u.username === username && u.password === password);
     if (user) {
-        res.json({ success: true, role: user.role, storeName: user.storeName, points: user.points, tier: user.tier, reputation: user.reputation, banned: user.banned, shadowbanned: user.shadowbanned, reportCount: user.reportCount });
+        user.auth_token = crypto.randomBytes(16).toString('hex');
+        saveDB();
+        res.json({ success: true, role: user.role, storeName: user.storeName, points: user.points, tier: user.tier, reputation: user.reputation, banned: user.banned, shadowbanned: user.shadowbanned, reportCount: user.reportCount, authToken: user.auth_token });
     } else {
         res.json({ success: false, message: "ID 또는 비번 틀림" });
     }

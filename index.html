@@ -504,6 +504,7 @@
         let currentAnswerId = null;
         let currentAnswererId = null;
         let answerReviewMode = false;
+        let authToken = null;
         let askModeV2 = false;
         const MIN_TEXT_LEN = 5;
         const MAX_TEXT_LEN = 15;
@@ -711,6 +712,7 @@
             const data = await res.json(); 
             if(data.success) { 
                 myRole = data.role; myUsername = id; myStoreName = data.storeName; myTier = data.tier; document.getElementById('login-overlay').style.display = 'none'; document.getElementById('menu-before-login').style.display = 'none'; document.getElementById('menu-after-login').style.display = 'flex'; 
+                authToken = data.authToken || null;
                 socket.emit('identify', myUsername);
                 canPost = !data.banned;
                 if (data.banned) alert("신고로 인해 작성 권한이 제한되었습니다. 운영자에게 문의해주세요.");
@@ -827,14 +829,15 @@
             try {
                 const response = await fetch('/api/questions/create', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', 'x-auth-token': authToken || '' },
                     body: JSON.stringify({
                         userId: myUsername,
                         text: text,
                         lat: selectedLat,
                         lng: selectedLng,
                         amount: amount,
-                        type: type
+                        type: type,
+                        authToken: authToken || ''
                     })
                 });
                 const data = await response.json();
@@ -861,13 +864,14 @@
                 navigator.geolocation.getCurrentPosition(async (position) => {
                     const response = await fetch('/api/answers/create', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: { 'Content-Type': 'application/json', 'x-auth-token': authToken || '' },
                         body: JSON.stringify({
                             questionId: currentQuestionId,
                             answererId: myUsername,
                             text: text,
                             answererLat: position.coords.latitude,
-                            answererLng: position.coords.longitude
+                            answererLng: position.coords.longitude,
+                            authToken: authToken || ''
                         })
                     });
                     const data = await response.json();
@@ -887,7 +891,9 @@
         // 지갑 로드
         async function loadWallet() {
             try {
-                const response = await fetch(`/api/wallet/${myUsername}`);
+                const response = await fetch(`/api/wallet/${myUsername}`, {
+                    headers: { 'x-auth-token': authToken || '' }
+                });
                 const data = await response.json();
                 if (data.success) {
                     document.getElementById('cash-balance').innerText = data.wallet.cash_balance;
@@ -905,10 +911,11 @@
             try {
                 const response = await fetch('/api/wallet/convert', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', 'x-auth-token': authToken || '' },
                     body: JSON.stringify({
                         userId: myUsername,
-                        amount: parseInt(amount, 10)
+                        amount: parseInt(amount, 10),
+                        authToken: authToken || ''
                     })
                 });
                 const data = await response.json();
@@ -930,10 +937,11 @@
             try {
                 const response = await fetch('/api/wallet/withdraw', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', 'x-auth-token': authToken || '' },
                     body: JSON.stringify({
                         userId: myUsername,
-                        amount: parseInt(amount, 10)
+                        amount: parseInt(amount, 10),
+                        authToken: authToken || ''
                     })
                 });
                 const data = await response.json();
@@ -974,10 +982,11 @@
             try {
                 const response = await fetch('/api/trust/like', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', 'x-auth-token': authToken || '' },
                     body: JSON.stringify({
                         userId: myUsername,
-                        answerId: currentAnswerId
+                        answerId: currentAnswerId,
+                        authToken: authToken || ''
                     })
                 });
                 const data = await response.json();
@@ -998,13 +1007,14 @@
             try {
                 const response = await fetch('/api/trust/report', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', 'x-auth-token': authToken || '' },
                     body: JSON.stringify({
                         reporterId: myUsername,
                         reportedId: currentAnswererId,
                         type: 'answer',
                         targetId: currentAnswerId,
-                        reason: reason
+                        reason: reason,
+                        authToken: authToken || ''
                     })
                 });
                 const data = await response.json();
