@@ -188,6 +188,42 @@ app.get('/payment/fail', (req, res) => {
     res.send('<h1>❌ 결제 실패</h1><p><a href="/">다시 시도</a></p>');
 });
 
+// 에스크로 자동 해제 (1시간마다 체크)
+setInterval(async () => {
+    const now = new Date();
+    for (const escrow of db.escrow) {
+        if (escrow.status === 'held' && new Date(escrow.release_at) < now) {
+            if (!escrow.answerer_id) {
+                escrow.status = 'refunded';
+            } else {
+                const answerer = db.users.find(u => u.id === escrow.answerer_id);
+                if (answerer) {
+                    const fee = Math.floor(escrow.amount * 0.15);
+                    const earning = escrow.amount - fee;
+                    answerer.cash_balance = (answerer.cash_balance || 0) + earning;
+                    escrow.status = 'released';
+                    db.transactions.push({
+                        id: `TX_${Date.now()}`,
+                        user_id: escrow.answerer_id,
+                        type: 'ANSWER_EARN',
+                        amount: earning,
+                        cash_change: earning,
+                        point_change: 0,
+                        description: '답변 수익',
+                        timestamp: new Date().toISOString()
+                    });
+                    answerer.trust_score = (answerer.trust_score || 0) + 1;
+                } else {
+                    escrow.status = 'refunded';
+                }
+            }
+            saveDB();
+        }
+    }
+}, 60 * 60 * 1000);
+
+console.log('✅ 에스크로 자동 해제 시작');
+
 // 내 근처 질문 목록
 app.get('/api/questions/nearby', (req, res) => {
     try {
@@ -275,6 +311,118 @@ app.post('/api/answers/create', async (req, res) => {
     }
 });
 
+// 캐시 → 포인트 전환
+app.post('/api/wallet/convert', (req, res) => {
+    try {
+        const { userId, amount } = req.body;
+        const user = db.users.find(u => u.id === userId);
+        if (!user) {
+            return res.status(404).json({ success: false, error: '사용자를 찾을 수 없습니다' });
+        }
+        if ((user.cash_balance || 0) < amount) {
+            return res.status(400).json({ success: false, error: '캐시 잔액이 부족합니다' });
+        }
+
+        user.cash_balance -= amount;
+        user.point_balance = (user.point_balance || 0) + amount;
+
+        db.transactions.push({
+            id: `TX_${Date.now()}`,
+            user_id: userId,
+            type: 'CASH_TO_POINT',
+            amount: amount,
+            cash_change: -amount,
+            point_change: amount,
+            description: '캐시→포인트 전환',
+            timestamp: new Date().toISOString()
+        });
+
+        saveDB();
+        res.json({ success: true, new_cash: user.cash_balance, new_point: user.point_balance });
+    } catch (error) {
+        console.error('전환 오류:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// 현금 출금
+app.post('/api/wallet/withdraw', async (req, res) => {
+    try {
+        const { userId, amount } = req.body;
+        const user = db.users.find(u => u.id === userId);
+        if (!user) {
+            return res.status(404).json({ success: false, error: '사용자를 찾을 수 없습니다' });
+        }
+        if (amount < 5000) {
+            return res.status(400).json({ success: false, error: '최소 출금 금액은 5,000원입니다' });
+        }
+        if ((user.cash_balance || 0) < amount) {
+            return res.status(400).json({ success: false, error: '캐시 잔액이 부족합니다' });
+        }
+        if (!user.bank_account) {
+            return res.status(400).json({ success: false, error: '출금 계좌를 먼저 등록해주세요' });
+        }
+
+        user.cash_balance -= amount;
+
+        const withdrawal = {
+            id: `WD_${Date.now()}`,
+            user_id: userId,
+            amount: amount,
+            bank_account: user.bank_account,
+            bank_code: user.bank_code,
+            status: 'completed',
+            requested_at: new Date().toISOString(),
+            completed_at: new Date().toISOString()
+        };
+        db.withdrawals.push(withdrawal);
+
+        db.transactions.push({
+            id: `TX_${Date.now()}`,
+            user_id: userId,
+            type: 'CASH_WITHDRAW',
+            amount: -amount,
+            cash_change: -amount,
+            point_change: 0,
+            description: '현금 출금',
+            timestamp: new Date().toISOString()
+        });
+
+        saveDB();
+        res.json({ success: true, message: '출금이 완료되었습니다 (테스트 모드)' });
+    } catch (error) {
+        console.error('출금 오류:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// 지갑 조회
+app.get('/api/wallet/:userId', (req, res) => {
+    try {
+        const { userId } = req.params;
+        const user = db.users.find(u => u.id === userId);
+        if (!user) {
+            return res.status(404).json({ success: false, error: '사용자를 찾을 수 없습니다' });
+        }
+        const recentTransactions = db.transactions
+            .filter(t => t.user_id === userId)
+            .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+            .slice(0, 10);
+        res.json({
+            success: true,
+            wallet: {
+                cash_balance: user.cash_balance || 0,
+                point_balance: user.point_balance || 0,
+                trust_score: user.trust_score || 0
+            },
+            transactions: recentTransactions
+        });
+    } catch (error) {
+        console.error('지갑 조회 오류:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // 회원가입
 app.post('/register', (req, res) => {
     const { username, password, role, storeName } = req.body;
@@ -282,11 +430,17 @@ app.post('/register', (req, res) => {
     if (existing) return res.json({ success: false, message: "이미 있는 ID입니다." });
 
     const newUser = {
+        id: `U_${Date.now()}`,
         username, password, role, 
         storeName: role === 'host' ? storeName : null,
         points: role === 'guest' ? 1000 : 0,
         tier: role === 'host' ? 'Free' : null,
         history: [],
+        cash_balance: 0,
+        point_balance: 0,
+        trust_score: 50,
+        bank_account: null,
+        bank_code: null,
         reputation: 0,
         banned: false,
         reportCount: 0,
