@@ -538,7 +538,8 @@
         let currentAnswerId = null;
         let currentAnswererId = null;
         let answerReviewMode = false;
-        let authToken = null;
+        let authToken = localStorage.getItem('authToken');
+        let authUser = localStorage.getItem('authUser');
         let pushEndpoint = null;
 
         function formatNumber(n) {
@@ -725,7 +726,7 @@
         }
         function closeMyPage() { document.getElementById('mypage-overlay').style.display = 'none'; }
         async function upgradeTier(tier) { if(!confirm(`${tier} 등급으로 업그레이드 하시겠습니까?`)) return; const res = await fetch('/upgrade-tier', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username: myUsername, tier: tier }) }); const data = await res.json(); if(data.success) { alert(`🎉 ${tier} 등급이 되었습니다.`); openMyPage(); } }
-        function logout() { location.reload(); }
+        function logout() { localStorage.removeItem('authToken'); localStorage.removeItem('authUser'); location.reload(); }
 
         function selectAskType(type) { selectedAskType = type; document.getElementById('btn-ask-text').classList.remove('selected'); document.getElementById('btn-ask-photo').classList.remove('selected'); document.getElementById('btn-ask-' + type).classList.add('selected'); }
         function closeAskModal() { document.getElementById('ask-modal').style.display = 'none'; }
@@ -765,6 +766,8 @@
             if(data.success) { 
                 myRole = data.role; myUsername = id; myStoreName = data.storeName; myTier = data.tier; document.getElementById('login-overlay').style.display = 'none'; document.getElementById('menu-before-login').style.display = 'none'; document.getElementById('menu-after-login').style.display = 'flex'; 
                 authToken = data.authToken || null;
+                authUser = myUsername;
+                if (authToken) { localStorage.setItem('authToken', authToken); localStorage.setItem('authUser', authUser); }
                 socket.emit('identify', myUsername);
                 canPost = !data.banned;
                 if (data.banned) alert("신고로 인해 작성 권한이 제한되었습니다. 운영자에게 문의해주세요.");
@@ -870,6 +873,11 @@
             const text = document.getElementById('input-question').value;
             const type = document.querySelector('input[name="ask-type"]:checked').value;
             const amount = parseInt(document.getElementById('input-amount').value, 10);
+            if (!authToken) {
+                alert('로그인이 필요합니다. 다시 로그인해주세요.');
+                openLoginModal('guest');
+                return;
+            }
 
             if (!text || text.length < 5) {
                 alert('질문은 5글자 이상 입력해주세요');
@@ -913,6 +921,11 @@
             const text = document.getElementById('input-answer').value;
             if (!text) {
                 alert('답변을 입력해주세요');
+                return;
+            }
+            if (!authToken) {
+                alert('로그인이 필요합니다. 다시 로그인해주세요.');
+                openLoginModal('guest');
                 return;
             }
             try {
