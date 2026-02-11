@@ -7,6 +7,7 @@ const path = require('path');
 const cors = require('cors');
 const fs = require('fs');
 const axios = require('axios');
+const Filter = require('bad-words');
 
 const TOSS_SECRET_KEY = process.env.TOSS_SECRET_KEY || '';
 const TOSS_API_BASE = 'https://api.tosspayments.com';
@@ -53,6 +54,8 @@ const BAD_WORDS = [
     "시발","씨발","ㅅㅂ","병신","좆","미친","개새","fuck","shit","sex","porn",
     "도박","토토","바카라","카지노","대출","성인","성인광고"
 ];
+const filter = new Filter();
+filter.addWords('ㅅㅂ', 'ㅆㅂ', '시발', '개새끼');
 
 // 히스토리 기록
 function logHistory(user, type, amount, desc) {
@@ -105,6 +108,9 @@ app.get('/', (req, res) => { res.sendFile(path.join(__dirname, 'index.html')); }
 app.post('/api/questions/create', async (req, res) => {
     try {
         const { userId, text, lat, lng, amount, type } = req.body;
+        if (filter.isProfane(text) || hasBadWord(text)) {
+            return res.status(400).json({ success: false, error: '부적절한 단어가 포함되어 있습니다' });
+        }
         const user = findUserByIdOrUsername(userId);
         const askerId = user ? user.id : userId;
         const questionId = `Q_${Date.now()}`;
@@ -240,6 +246,9 @@ app.get('/api/questions/nearby', (req, res) => {
 
         const nearbyQuestions = db.questions.filter(q => {
             if (q.status !== 'open') return false;
+            if (q.status === 'hidden') return false;
+            const asker = findUserByIdOrUsername(q.asker_id);
+            if (asker && asker.role === 'suspended') return false;
             const distance = calculateDistance(baseLat, baseLng, q.lat, q.lng);
             return distance <= rad;
         });
@@ -258,6 +267,9 @@ app.get('/api/questions/nearby', (req, res) => {
 app.post('/api/answers/create', async (req, res) => {
     try {
         const { questionId, answererId, text, answererLat, answererLng } = req.body;
+        if (filter.isProfane(text) || hasBadWord(text)) {
+            return res.status(400).json({ success: false, error: '부적절한 단어가 포함되어 있습니다' });
+        }
         const answerUser = findUserByIdOrUsername(answererId);
         const answererStoredId = answerUser ? answerUser.id : answererId;
 
@@ -315,6 +327,77 @@ app.post('/api/answers/create', async (req, res) => {
         res.json({ success: true, answer: answer });
     } catch (error) {
         console.error('답변 생성 오류:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// 신고하기
+app.post('/api/trust/report', (req, res) => {
+    try {
+        const { reporterId, reportedId, type, targetId, reason } = req.body;
+        const report = {
+            id: `REP_${Date.now()}`,
+            reporter_id: reporterId,
+            reported_id: reportedId,
+            type: type,
+            target_id: targetId,
+            reason: reason,
+            status: 'pending',
+            created_at: new Date().toISOString()
+        };
+
+        db.trust_reports.push(report);
+
+        const sameTargetReports = db.trust_reports.filter(r =>
+            r.target_id === targetId && r.status === 'pending'
+        );
+
+        if (sameTargetReports.length >= 3) {
+            if (type === 'answer') {
+                const answer = db.answers.find(a => a.id === targetId);
+                if (answer) answer.status = 'hidden';
+            } else if (type === 'question') {
+                const question = db.questions.find(q => q.id === targetId);
+                if (question) question.status = 'hidden';
+            }
+
+            const reported = findUserByIdOrUsername(reportedId);
+            if (reported) {
+                reported.trust_score = (reported.trust_score || 0) - 10;
+                if (reported.trust_score <= 0) {
+                    reported.role = 'suspended';
+                    console.log(`⚠️ 계정 정지: ${reported.username}`);
+                }
+            }
+        }
+
+        saveDB();
+        res.json({ success: true, message: '신고가 접수되었습니다' });
+    } catch (error) {
+        console.error('신고 오류:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// 좋아요 (만족)
+app.post('/api/trust/like', (req, res) => {
+    try {
+        const { userId, answerId } = req.body;
+        const answer = db.answers.find(a => a.id === answerId);
+        if (!answer) {
+            return res.status(404).json({ success: false, error: '답변을 찾을 수 없습니다' });
+        }
+        const answerer = findUserByIdOrUsername(answer.answerer_id);
+        if (!answerer) {
+            return res.status(404).json({ success: false, error: '사용자를 찾을 수 없습니다' });
+        }
+        answerer.trust_score = (answerer.trust_score || 0) + 1;
+        answer.status = 'approved';
+
+        saveDB();
+        res.json({ success: true, new_score: answerer.trust_score });
+    } catch (error) {
+        console.error('좋아요 오류:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });

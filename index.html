@@ -369,7 +369,7 @@
                   placeholder="답변을 입력하세요"
                   rows="3"
                   style="width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 6px;"></textarea>
-        <button onclick="submitAnswer()" style="
+        <button id="btn-submit-answer" onclick="submitAnswer()" style="
           width: 100%;
           padding: 14px;
           background: #10B981;
@@ -379,6 +379,26 @@
           font-size: 16px;
           cursor: pointer;
         ">답변하기</button>
+        <div id="answer-actions" style="display: none; gap: 10px; margin-top: 15px;">
+          <button onclick="likeAnswer()" style="
+            flex: 1;
+            padding: 12px;
+            background: #10B981;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+          ">👍 만족</button>
+          <button onclick="reportAnswer()" style="
+            flex: 1;
+            padding: 12px;
+            background: #EF4444;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+          ">🚨 신고</button>
+        </div>
         <button onclick="closeAnswerModalV2()" style="
           width: 100%;
           padding: 14px;
@@ -481,6 +501,9 @@
         let selectedLat = null;
         let selectedLng = null;
         let currentQuestionId = null;
+        let currentAnswerId = null;
+        let currentAnswererId = null;
+        let answerReviewMode = false;
         let askModeV2 = false;
         const MIN_TEXT_LEN = 5;
         const MAX_TEXT_LEN = 15;
@@ -556,10 +579,29 @@
                 document.getElementById('answer-question-text').innerText = data.question.text;
                 document.getElementById('answer-reward').innerText = `보상: ${data.question.amount}원`;
                 currentQuestionId = data.question.id;
+                answerReviewMode = false;
+                document.getElementById('input-answer').value = '';
+                document.getElementById('input-answer').readOnly = false;
+                document.getElementById('btn-submit-answer').style.display = 'block';
+                document.getElementById('answer-actions').style.display = 'none';
                 document.getElementById('modal-answer').style.display = 'flex';
                 if (Notification.permission === 'granted') {
                     new Notification('BluePin', { body: data.message, icon: '/logo.png' });
                 }
+            });
+            socket.on('answer_received', (data) => {
+                if (!data || !data.answer) return;
+                if (data.asker_id !== myUsername) return;
+                currentAnswerId = data.answer.id;
+                currentAnswererId = data.answer.answerer_id;
+                answerReviewMode = true;
+                document.getElementById('answer-question-text').innerText = data.answer.text || '답변이 도착했습니다';
+                document.getElementById('answer-reward').innerText = '답변 확인';
+                document.getElementById('input-answer').value = data.answer.text || '';
+                document.getElementById('input-answer').readOnly = true;
+                document.getElementById('btn-submit-answer').style.display = 'none';
+                document.getElementById('answer-actions').style.display = 'flex';
+                document.getElementById('modal-answer').style.display = 'flex';
             });
             socket.on('removePin', (id) => { if (markers[id]) { map.removeLayer(markers[id]); delete markers[id]; } });
             socket.on('pinAnswered', (data) => {
@@ -809,6 +851,7 @@
 
         // 답변 제출
         async function submitAnswer() {
+            if (answerReviewMode) return;
             const text = document.getElementById('input-answer').value;
             if (!text) {
                 alert('답변을 입력해주세요');
@@ -914,6 +957,9 @@
         function closeAnswerModalV2() {
             document.getElementById('modal-answer').style.display = 'none';
             currentQuestionId = null;
+            currentAnswerId = null;
+            currentAnswererId = null;
+            answerReviewMode = false;
         }
         function closeWalletModalV2() {
             document.getElementById('modal-wallet').style.display = 'none';
@@ -921,6 +967,56 @@
 
         if (Notification.permission === 'default') {
             Notification.requestPermission();
+        }
+
+        async function likeAnswer() {
+            if (!currentAnswerId) return;
+            try {
+                const response = await fetch('/api/trust/like', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userId: myUsername,
+                        answerId: currentAnswerId
+                    })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    alert('좋아요! 답변자의 신뢰도가 올랐습니다.');
+                    closeAnswerModalV2();
+                } else {
+                    alert(data.error || '오류가 발생했습니다');
+                }
+            } catch (error) {
+                console.error('좋아요 오류:', error);
+            }
+        }
+
+        async function reportAnswer() {
+            const reason = prompt('신고 사유를 입력하세요:\n(허위정보/욕설/스팸)');
+            if (!reason) return;
+            try {
+                const response = await fetch('/api/trust/report', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        reporterId: myUsername,
+                        reportedId: currentAnswererId,
+                        type: 'answer',
+                        targetId: currentAnswerId,
+                        reason: reason
+                    })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    alert('신고가 접수되었습니다');
+                    closeAnswerModalV2();
+                } else {
+                    alert(data.error || '오류가 발생했습니다');
+                }
+            } catch (error) {
+                console.error('신고 오류:', error);
+            }
         }
         function toggleProMode() { const isPro = document.getElementById('pro-switch').checked; const inputField = document.getElementById('promo-text'); inputField.disabled = !isPro; if (isPro) { inputField.placeholder = "입력하세요"; inputField.style.background = "white"; } else { inputField.placeholder = "🔒 유료"; inputField.value = ""; inputField.style.background = "#f3f4f6"; } }
         function handlePromo(type, defaultText) {
