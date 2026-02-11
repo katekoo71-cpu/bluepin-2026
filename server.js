@@ -79,6 +79,22 @@ function hasBadWord(text) {
     return BAD_WORDS.some(w => t.includes(w));
 }
 
+// 거리 계산 (Haversine formula)
+function calculateDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371e3; // 지구 반지름 (미터)
+    const φ1 = lat1 * Math.PI / 180;
+    const φ2 = lat2 * Math.PI / 180;
+    const Δφ = (lat2 - lat1) * Math.PI / 180;
+    const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+    const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+              Math.cos(φ1) * Math.cos(φ2) *
+              Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    return R * c; // 미터
+}
+
 app.get('/', (req, res) => { res.sendFile(path.join(__dirname, 'index.html')); });
 
 // 질문 생성 API
@@ -170,6 +186,93 @@ app.get('/payment/success', async (req, res) => {
 
 app.get('/payment/fail', (req, res) => {
     res.send('<h1>❌ 결제 실패</h1><p><a href="/">다시 시도</a></p>');
+});
+
+// 내 근처 질문 목록
+app.get('/api/questions/nearby', (req, res) => {
+    try {
+        const { lat, lng, radius } = req.query;
+        const baseLat = parseFloat(lat);
+        const baseLng = parseFloat(lng);
+        const rad = parseInt(radius || 500, 10);
+
+        const nearbyQuestions = db.questions.filter(q => {
+            if (q.status !== 'open') return false;
+            const distance = calculateDistance(baseLat, baseLng, q.lat, q.lng);
+            return distance <= rad;
+        });
+
+        res.json({
+            success: true,
+            questions: nearbyQuestions
+        });
+    } catch (error) {
+        console.error('질문 목록 오류:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// 답변 생성 API
+app.post('/api/answers/create', async (req, res) => {
+    try {
+        const { questionId, answererId, text, answererLat, answererLng } = req.body;
+
+        const question = db.questions.find(q => q.id === questionId);
+        if (!question || question.status !== 'open') {
+            return res.status(400).json({
+                success: false,
+                error: '질문을 찾을 수 없거나 이미 답변되었습니다'
+            });
+        }
+
+        const distance = calculateDistance(
+            parseFloat(answererLat), parseFloat(answererLng),
+            question.lat, question.lng
+        );
+        if (distance > 100) {
+            return res.status(400).json({
+                success: false,
+                error: '매장에서 100m 이내에 있어야 답변할 수 있습니다'
+            });
+        }
+
+        const existingAnswer = db.answers.find(a => a.question_id === questionId);
+        if (existingAnswer) {
+            return res.status(400).json({
+                success: false,
+                error: '이미 다른 사람이 답변했습니다'
+            });
+        }
+
+        const answer = {
+            id: `A_${Date.now()}`,
+            question_id: questionId,
+            answerer_id: answererId,
+            text: text,
+            photo_url: null,
+            status: 'pending',
+            created_at: new Date().toISOString()
+        };
+
+        db.answers.push(answer);
+        question.status = 'answered';
+
+        const escrow = db.escrow.find(e => e.question_id === questionId);
+        if (escrow) escrow.answerer_id = answererId;
+
+        saveDB();
+
+        io.emit('answer_received', {
+            question_id: questionId,
+            answer: answer,
+            asker_id: question.asker_id
+        });
+
+        res.json({ success: true, answer: answer });
+    } catch (error) {
+        console.error('답변 생성 오류:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
 });
 
 // 회원가입
