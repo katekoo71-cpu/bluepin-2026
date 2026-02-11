@@ -6,10 +6,18 @@ const socketIo = require('socket.io');
 const path = require('path');
 const cors = require('cors');
 const fs = require('fs');
-const TossPayments = require('@tosspayments/server-sdk');
+const axios = require('axios');
 
-// 토스 클라이언트 초기화
-const tossClient = TossPayments(process.env.TOSS_SECRET_KEY);
+const TOSS_SECRET_KEY = process.env.TOSS_SECRET_KEY || '';
+const TOSS_API_BASE = 'https://api.tosspayments.com';
+
+function getTossHeaders() {
+    const encoded = Buffer.from(`${TOSS_SECRET_KEY}:`).toString('base64');
+    return {
+        Authorization: `Basic ${encoded}`,
+        'Content-Type': 'application/json'
+    };
+}
 
 const app = express();
 const server = http.createServer(app);
@@ -94,18 +102,19 @@ app.post('/api/questions/create', async (req, res) => {
         db.questions.push(question);
         saveDB();
 
-        const payment = await tossClient.createPayment({
+        const payment = await axios.post(`${TOSS_API_BASE}/v1/payments`, {
             amount: parseInt(amount),
             orderId: questionId,
             orderName: text.substring(0, 20),
             customerName: userId,
+            method: 'CARD',
             successUrl: `${process.env.BASE_URL}/payment/success?questionId=${questionId}`,
             failUrl: `${process.env.BASE_URL}/payment/fail`
-        });
+        }, { headers: getTossHeaders() });
 
         res.json({
             success: true,
-            checkoutUrl: payment.checkoutUrl,
+            checkoutUrl: payment.data?.checkout?.url || payment.data?.checkoutUrl || null,
             questionId: questionId
         });
     } catch (error) {
@@ -119,13 +128,13 @@ app.get('/payment/success', async (req, res) => {
     try {
         const { questionId, paymentKey, amount } = req.query;
 
-        const approval = await tossClient.confirmPayment({
+        const approval = await axios.post(`${TOSS_API_BASE}/v1/payments/confirm`, {
             paymentKey: paymentKey,
             orderId: questionId,
             amount: parseInt(amount)
-        });
+        }, { headers: getTossHeaders() });
 
-        if (approval.status === 'DONE') {
+        if (approval.data?.status === 'DONE') {
             const question = db.questions.find(q => q.id === questionId);
             if (!question) return res.redirect('/payment/fail');
             question.status = 'open';
