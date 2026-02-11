@@ -38,7 +38,7 @@ function loadDB() {
         const raw = fs.readFileSync(DB_PATH, 'utf8');
         return JSON.parse(raw);
     } catch (e) {
-        return { users: [], questions: [], answers: [], escrow: [], transactions: [], withdrawals: [], pins: [], stores: [], trust_reports: [], push_subscriptions: [] };
+        return { users: [], questions: [], answers: [], escrow: [], transactions: [], topups: [], withdrawals: [], pins: [], stores: [], trust_reports: [], push_subscriptions: [] };
     }
 }
 function saveDB() {
@@ -47,6 +47,7 @@ function saveDB() {
 
 let db = loadDB();
 db.push_subscriptions = db.push_subscriptions || [];
+db.topups = db.topups || [];
 // 기존 로직 호환
 let pins = db.pins;
 let users = db.users;
@@ -100,6 +101,8 @@ function getAuthUser(req) {
 function isValidAmount(amount) {
     return Number.isFinite(amount) && amount > 0 && Number.isInteger(amount);
 }
+
+function nowIso() { return new Date().toISOString(); }
 
 if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
     webpush.setVapidDetails('mailto:admin@bluepin.app', VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
@@ -262,19 +265,41 @@ app.post('/api/questions/create', async (req, res) => {
         db.questions.push(question);
         saveDB();
 
-        const payment = await axios.post(`${TOSS_API_BASE}/v1/payments`, {
-            amount: parseInt(amount),
-            orderId: questionId,
-            orderName: text.substring(0, 20),
-            customerName: userId,
-            method: 'CARD',
-            successUrl: `${process.env.BASE_URL}/payment/success?questionId=${questionId}`,
-            failUrl: `${process.env.BASE_URL}/payment/fail`
-        }, { headers: getTossHeaders() });
+        if ((user.cash_balance || 0) < parsedAmount) {
+            return res.status(400).json({ success: false, error: '캐시가 부족합니다. 충전 후 다시 시도해주세요.' });
+        }
+
+        // 질문 금액은 지갑에서 즉시 차감 (원클릭)
+        user.cash_balance -= parsedAmount;
+        db.transactions.push({
+            id: `TX_${Date.now()}`,
+            user_id: user.id,
+            type: 'QUESTION_SPEND',
+            amount: parsedAmount,
+            cash_change: -parsedAmount,
+            point_change: 0,
+            description: '질문 결제',
+            timestamp: nowIso()
+        });
+
+        question.status = 'open';
+        db.escrow.push({
+            id: `ESC_${Date.now()}`,
+            question_id: questionId,
+            amount: parsedAmount,
+            asker_id: question.asker_id,
+            answerer_id: null,
+            status: 'held',
+            created_at: nowIso(),
+            release_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+        });
+
+        saveDB();
+        io.emit('new_question', { question: question, message: `근처에서 질문! +${parsedAmount}원` });
+        sendPushToNearby(question);
 
         res.json({
             success: true,
-            checkoutUrl: payment.data?.checkout?.url || payment.data?.checkoutUrl || null,
             questionId: questionId
         });
     } catch (error) {
@@ -333,12 +358,112 @@ app.get('/payment/fail', (req, res) => {
     res.send('<h1>❌ 결제 실패</h1><p><a href="/">다시 시도</a></p>');
 });
 
+// 지갑 충전 결제 생성
+app.post('/api/wallet/topup', async (req, res) => {
+    try {
+        const { userId, amount } = req.body;
+        const authUser = getAuthUser(req);
+        if (!authUser) return res.status(401).json({ success: false, error: '인증이 필요합니다' });
+        if (authUser.id !== userId && authUser.username !== userId) {
+            return res.status(403).json({ success: false, error: '권한 없음' });
+        }
+        const parsedAmount = parseInt(amount, 10);
+        if (!isValidAmount(parsedAmount)) {
+            return res.status(400).json({ success: false, error: '금액이 올바르지 않습니다' });
+        }
+        const orderId = `TOPUP_${Date.now()}`;
+        db.topups.push({
+            id: orderId,
+            user_id: authUser.id,
+            amount: parsedAmount,
+            status: 'payment_pending',
+            created_at: nowIso()
+        });
+        saveDB();
+
+        const payment = await axios.post(`${TOSS_API_BASE}/v1/payments`, {
+            amount: parsedAmount,
+            orderId: orderId,
+            orderName: `BluePin 충전 ${parsedAmount}원`,
+            customerName: authUser.username,
+            method: 'CARD',
+            successUrl: `${process.env.BASE_URL}/payment/topup-success?orderId=${orderId}&amount=${parsedAmount}`,
+            failUrl: `${process.env.BASE_URL}/payment/topup-fail`
+        }, { headers: getTossHeaders() });
+
+        res.json({
+            success: true,
+            checkoutUrl: payment.data?.checkout?.url || payment.data?.checkoutUrl || null,
+            orderId: orderId
+        });
+    } catch (error) {
+        console.error('충전 생성 오류:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// 충전 결제 성공
+app.get('/payment/topup-success', async (req, res) => {
+    try {
+        const { orderId, paymentKey, amount } = req.query;
+        const approval = await axios.post(`${TOSS_API_BASE}/v1/payments/confirm`, {
+            paymentKey: paymentKey,
+            orderId: orderId,
+            amount: parseInt(amount, 10)
+        }, { headers: getTossHeaders() });
+
+        if (approval.data?.status === 'DONE') {
+            const topup = db.topups.find(t => t.id === orderId);
+            if (!topup) return res.redirect('/payment/topup-fail');
+            const user = findUserByIdOrUsername(topup.user_id);
+            if (!user) return res.redirect('/payment/topup-fail');
+            topup.status = 'completed';
+            topup.payment_key = paymentKey;
+            user.cash_balance = (user.cash_balance || 0) + parseInt(amount, 10);
+            db.transactions.push({
+                id: `TX_${Date.now()}`,
+                user_id: user.id,
+                type: 'TOPUP',
+                amount: parseInt(amount, 10),
+                cash_change: parseInt(amount, 10),
+                point_change: 0,
+                description: '캐시 충전',
+                timestamp: nowIso()
+            });
+            saveDB();
+            return res.send('<h1>✅ 충전 완료!</h1><p><a href="/">돌아가기</a></p>');
+        }
+        res.redirect('/payment/topup-fail');
+    } catch (error) {
+        console.error('충전 승인 오류:', error);
+        res.redirect('/payment/topup-fail');
+    }
+});
+
+app.get('/payment/topup-fail', (req, res) => {
+    res.send('<h1>❌ 충전 실패</h1><p><a href="/">다시 시도</a></p>');
+});
+
 // 에스크로 자동 해제 (1시간마다 체크)
 setInterval(async () => {
     const now = new Date();
     for (const escrow of db.escrow) {
         if (escrow.status === 'held' && new Date(escrow.release_at) < now) {
             if (!escrow.answerer_id) {
+                const asker = findUserByIdOrUsername(escrow.asker_id);
+                if (asker) {
+                    asker.cash_balance = (asker.cash_balance || 0) + escrow.amount;
+                    db.transactions.push({
+                        id: `TX_${Date.now()}`,
+                        user_id: asker.id,
+                        type: 'ESCROW_REFUND',
+                        amount: escrow.amount,
+                        cash_change: escrow.amount,
+                        point_change: 0,
+                        description: '질문 미답변 환불',
+                        timestamp: nowIso()
+                    });
+                }
                 escrow.status = 'refunded';
             } else {
                 const answerer = findUserByIdOrUsername(escrow.answerer_id);
@@ -631,22 +756,25 @@ app.post('/api/wallet/withdraw', async (req, res) => {
         if (!isValidAmount(parsedAmount)) {
             return res.status(400).json({ success: false, error: '금액이 올바르지 않습니다' });
         }
-        if (parsedAmount < 5000) {
-            return res.status(400).json({ success: false, error: '최소 출금 금액은 5,000원입니다' });
+        if (parsedAmount < 10000) {
+            return res.status(400).json({ success: false, error: '최소 출금 금액은 10,000원입니다' });
         }
-        if ((user.cash_balance || 0) < parsedAmount) {
-            return res.status(400).json({ success: false, error: '캐시 잔액이 부족합니다' });
+        const fee = 500;
+        const totalDeduct = parsedAmount + fee;
+        if ((user.cash_balance || 0) < totalDeduct) {
+            return res.status(400).json({ success: false, error: '캐시 잔액이 부족합니다 (수수료 포함)' });
         }
         if (!user.bank_account) {
             return res.status(400).json({ success: false, error: '출금 계좌를 먼저 등록해주세요' });
         }
 
-        user.cash_balance -= parsedAmount;
+        user.cash_balance -= totalDeduct;
 
         const withdrawal = {
             id: `WD_${Date.now()}`,
             user_id: userId,
             amount: parsedAmount,
+            fee: fee,
             bank_account: user.bank_account,
             bank_code: user.bank_code,
             status: 'completed',
@@ -660,9 +788,9 @@ app.post('/api/wallet/withdraw', async (req, res) => {
             user_id: userId,
             type: 'CASH_WITHDRAW',
             amount: -parsedAmount,
-            cash_change: -parsedAmount,
+            cash_change: -totalDeduct,
             point_change: 0,
-            description: '현금 출금',
+            description: `현금 출금 (수수료 ${fee}원)`,
             timestamp: new Date().toISOString()
         });
 
