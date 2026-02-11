@@ -140,6 +140,7 @@
         .popup-message { font-size:13px; line-height:1.35; word-break: keep-all; }
         .popup-actions { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:6px; }
         .floating-btn { display: none; }
+        .floating-stack { position: fixed; right: 18px; bottom: 120px; display: flex; flex-direction: column; gap: 12px; z-index: 1500; }
 
         .leaflet-tooltip { display: none !important; border: 2px solid #333; border-radius: 8px; font-weight: bold; z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
         .map-zoomed-in .leaflet-tooltip { display: block !important; }
@@ -254,39 +255,32 @@
     <button id="open-controls-btn" onclick="toggleControls()">📣 여기 알리기</button>
     <button id="guest-ask-btn" onclick="enableAskMode()">❓<div class="ask-label">질문하기</div></button>
 
-    <!-- 질문하기 버튼 (우하단 플로팅) -->
-    <button id="btn-ask-question" class="floating-btn" style="
-      position: fixed;
-      bottom: 80px;
-      right: 20px;
-      width: 60px;
-      height: 60px;
-      border-radius: 50%;
-      background: #4F46E5;
-      color: white;
-      border: none;
-      font-size: 24px;
-      cursor: pointer;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-      z-index: 1000;
-    ">❓</button>
-
-    <!-- 지갑 버튼 -->
-    <button id="btn-wallet" class="floating-btn" style="
-      position: fixed;
-      bottom: 150px;
-      right: 20px;
-      width: 60px;
-      height: 60px;
-      border-radius: 50%;
-      background: #10B981;
-      color: white;
-      border: none;
-      font-size: 24px;
-      cursor: pointer;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-      z-index: 1000;
-    ">💰</button>
+    <div class="floating-stack">
+      <!-- 지갑 버튼 -->
+      <button id="btn-wallet" class="floating-btn" style="
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: #10B981;
+        color: white;
+        border: none;
+        font-size: 24px;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      ">💰</button>
+      <!-- 질문하기 버튼 (우하단 플로팅) -->
+      <button id="btn-ask-question" class="floating-btn" style="
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: #4F46E5;
+        color: white;
+        border: none;
+        font-size: 24px;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      ">❓</button>
+    </div>
 
     <div id="guest-wallet" style="display:none;" onclick="startFlash(1000)">
         <span class="wallet-icon">💰</span>
@@ -505,6 +499,13 @@
         let currentAnswererId = null;
         let answerReviewMode = false;
         let authToken = null;
+
+        function formatNumber(n) {
+            if (n === null || n === undefined) return '0';
+            const num = Number(n);
+            if (Number.isNaN(num)) return '0';
+            return num.toLocaleString('ko-KR');
+        }
         let askModeV2 = false;
         const MIN_TEXT_LEN = 5;
         const MAX_TEXT_LEN = 15;
@@ -578,7 +579,7 @@
             socket.on('new_question', (data) => {
                 if (!data || !data.question) return;
                 document.getElementById('answer-question-text').innerText = data.question.text;
-                document.getElementById('answer-reward').innerText = `보상: ${data.question.amount}원`;
+                document.getElementById('answer-reward').innerText = `보상: ${formatNumber(data.question.amount)}원`;
                 currentQuestionId = data.question.id;
                 answerReviewMode = false;
                 document.getElementById('input-answer').value = '';
@@ -586,6 +587,7 @@
                 document.getElementById('btn-submit-answer').style.display = 'block';
                 document.getElementById('answer-actions').style.display = 'none';
                 document.getElementById('modal-answer').style.display = 'flex';
+                showPushToast(`🔔 새 질문 도착: ${data.question.text}`);
                 if (Notification.permission === 'granted') {
                     new Notification('BluePin', { body: data.message, icon: '/logo.png' });
                 }
@@ -603,6 +605,7 @@
                 document.getElementById('btn-submit-answer').style.display = 'none';
                 document.getElementById('answer-actions').style.display = 'flex';
                 document.getElementById('modal-answer').style.display = 'flex';
+                showPushToast('✅ 답변이 도착했습니다');
             });
             socket.on('removePin', (id) => { if (markers[id]) { map.removeLayer(markers[id]); delete markers[id]; } });
             socket.on('pinAnswered', (data) => {
@@ -610,7 +613,7 @@
                 addMarkerToMap(data.updatedPin);
                 if (data.asker === myUsername) { playBrandSound(); alert("💌 답변 도착! (+포인트 지급됨)"); }
             });
-            socket.on('pointUpdated', (newPoint) => { document.getElementById('my-points').innerText = newPoint + " BP"; });
+            socket.on('pointUpdated', (newPoint) => { document.getElementById('my-points').innerText = `${formatNumber(newPoint)} BP`; });
             socket.on('errorMsg', (msg) => { alert("❌ " + msg); });
         } catch (e) { statusEl.innerText = "⚠️ 오류"; }
 
@@ -726,11 +729,11 @@
                     document.getElementById('btn-wallet').style.display = 'none';
                 } else {
                     document.getElementById('guest-wallet').style.display = 'flex';
-                    document.getElementById('my-points').innerText = data.points + " BP";
+                    document.getElementById('my-points').innerText = `${formatNumber(data.points)} BP`;
                     document.getElementById('guest-ask-btn').style.display = canPost ? 'block' : 'none';
                     crosshairEl.style.display = 'none';
                     crosshairEl.classList.remove('pin-host');
-                    alert(`환영합니다! 현재 포인트: ${data.points} BP`);
+                    alert(`환영합니다! 현재 포인트: ${formatNumber(data.points)} BP`);
                     document.getElementById('btn-ask-question').style.display = canPost ? 'block' : 'none';
                     document.getElementById('btn-wallet').style.display = 'block';
                 }
@@ -896,8 +899,8 @@
                 });
                 const data = await response.json();
                 if (data.success) {
-                    document.getElementById('cash-balance').innerText = data.wallet.cash_balance;
-                    document.getElementById('point-balance').innerText = data.wallet.point_balance;
+                    document.getElementById('cash-balance').innerText = formatNumber(data.wallet.cash_balance);
+                    document.getElementById('point-balance').innerText = formatNumber(data.wallet.point_balance);
                 }
             } catch (error) {
                 console.error('지갑 로드 오류:', error);
