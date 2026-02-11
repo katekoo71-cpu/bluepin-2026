@@ -1,9 +1,15 @@
 // server.js (V13.8 - 점주 무료 핀 & UI 수정 대응)
+require('dotenv').config();
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
 const path = require('path');
 const cors = require('cors');
+const fs = require('fs');
+const TossPayments = require('@tosspayments/server-sdk');
+
+// 토스 클라이언트 초기화
+const tossClient = TossPayments(process.env.TOSS_SECRET_KEY);
 
 const app = express();
 const server = http.createServer(app);
@@ -13,9 +19,23 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(__dirname));
 
-// 임시 데이터
-let pins = [];
-let users = []; 
+const DB_PATH = path.join(__dirname, 'db.json');
+function loadDB() {
+    try {
+        const raw = fs.readFileSync(DB_PATH, 'utf8');
+        return JSON.parse(raw);
+    } catch (e) {
+        return { users: [], questions: [], answers: [], escrow: [], transactions: [], withdrawals: [], pins: [], stores: [], trust_reports: [] };
+    }
+}
+function saveDB() {
+    fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
+}
+
+let db = loadDB();
+// 기존 로직 호환
+let pins = db.pins;
+let users = db.users;
 
 const MIN_TEXT_LEN = 5;
 const MAX_TEXT_LEN = 15;
@@ -52,6 +72,96 @@ function hasBadWord(text) {
 }
 
 app.get('/', (req, res) => { res.sendFile(path.join(__dirname, 'index.html')); });
+
+// 질문 생성 API
+app.post('/api/questions/create', async (req, res) => {
+    try {
+        const { userId, text, lat, lng, amount, type } = req.body;
+        const questionId = `Q_${Date.now()}`;
+        const question = {
+            id: questionId,
+            asker_id: userId,
+            text: text,
+            lat: parseFloat(lat),
+            lng: parseFloat(lng),
+            amount: parseInt(amount),
+            type: type,
+            status: 'payment_pending',
+            created_at: new Date().toISOString(),
+            payment_key: null
+        };
+
+        db.questions.push(question);
+        saveDB();
+
+        const payment = await tossClient.createPayment({
+            amount: parseInt(amount),
+            orderId: questionId,
+            orderName: text.substring(0, 20),
+            customerName: userId,
+            successUrl: `${process.env.BASE_URL}/payment/success?questionId=${questionId}`,
+            failUrl: `${process.env.BASE_URL}/payment/fail`
+        });
+
+        res.json({
+            success: true,
+            checkoutUrl: payment.checkoutUrl,
+            questionId: questionId
+        });
+    } catch (error) {
+        console.error('질문 생성 오류:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// 결제 성공 콜백
+app.get('/payment/success', async (req, res) => {
+    try {
+        const { questionId, paymentKey, amount } = req.query;
+
+        const approval = await tossClient.confirmPayment({
+            paymentKey: paymentKey,
+            orderId: questionId,
+            amount: parseInt(amount)
+        });
+
+        if (approval.status === 'DONE') {
+            const question = db.questions.find(q => q.id === questionId);
+            if (!question) return res.redirect('/payment/fail');
+            question.status = 'open';
+            question.payment_key = paymentKey;
+
+            db.escrow.push({
+                id: `ESC_${Date.now()}`,
+                question_id: questionId,
+                amount: parseInt(amount),
+                asker_id: question.asker_id,
+                answerer_id: null,
+                status: 'held',
+                created_at: new Date().toISOString(),
+                release_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+            });
+
+            saveDB();
+
+            io.emit('new_question', {
+                question: question,
+                message: `근처에서 질문! +${amount}원`
+            });
+
+            return res.send('<h1>✅ 질문 등록 완료!</h1><p><a href="/">돌아가기</a></p>');
+        }
+
+        res.redirect('/payment/fail');
+    } catch (error) {
+        console.error('결제 승인 오류:', error);
+        res.redirect('/payment/fail');
+    }
+});
+
+app.get('/payment/fail', (req, res) => {
+    res.send('<h1>❌ 결제 실패</h1><p><a href="/">다시 시도</a></p>');
+});
 
 // 회원가입
 app.post('/register', (req, res) => {
