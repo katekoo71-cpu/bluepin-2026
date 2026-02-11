@@ -139,6 +139,7 @@
         .popup-content { text-align:center; position:relative; max-width:240px; }
         .popup-message { font-size:13px; line-height:1.35; word-break: keep-all; }
         .popup-actions { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:6px; }
+        .floating-btn { display: none; }
 
         .leaflet-tooltip { display: none !important; border: 2px solid #333; border-radius: 8px; font-weight: bold; z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
         .map-zoomed-in .leaflet-tooltip { display: block !important; }
@@ -253,10 +254,191 @@
     <button id="open-controls-btn" onclick="toggleControls()">📣 여기 알리기</button>
     <button id="guest-ask-btn" onclick="enableAskMode()">❓<div class="ask-label">질문하기</div></button>
 
+    <!-- 질문하기 버튼 (우하단 플로팅) -->
+    <button id="btn-ask-question" class="floating-btn" style="
+      position: fixed;
+      bottom: 80px;
+      right: 20px;
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: #4F46E5;
+      color: white;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      z-index: 1000;
+    ">❓</button>
+
+    <!-- 지갑 버튼 -->
+    <button id="btn-wallet" class="floating-btn" style="
+      position: fixed;
+      bottom: 150px;
+      right: 20px;
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: #10B981;
+      color: white;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      z-index: 1000;
+    ">💰</button>
+
     <div id="guest-wallet" style="display:none;" onclick="startFlash(1000)">
         <span class="wallet-icon">💰</span>
         <span class="wallet-amount" id="my-points">0 BP</span>
         <span style="font-size:12px; color:#666; margin-left:5px;">사용하기 ></span>
+    </div>
+
+    <!-- 질문 모달 -->
+    <div id="modal-ask" style="
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.7);
+      z-index: 2000;
+      justify-content: center;
+      align-items: center;
+    ">
+      <div style="
+        background: white;
+        padding: 30px;
+        border-radius: 12px;
+        max-width: 400px;
+        width: 90%;
+      ">
+        <h3>질문하기</h3>
+        <p style="font-size: 14px; color: #666;">지도에서 위치를 터치한 후 질문하세요</p>
+        <input type="text" id="input-question"
+               placeholder="예: 지금 285 사이즈 있나요?"
+               maxlength="50"
+               style="width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 6px;">
+        <div style="margin: 15px 0;">
+          <label style="display: block; margin: 5px 0;">
+            <input type="radio" name="ask-type" value="text" checked>
+            문자 답변 (예: 100원)
+          </label>
+          <label style="display: block; margin: 5px 0;">
+            <input type="radio" name="ask-type" value="photo">
+            사진 답변 (예: 500원)
+          </label>
+        </div>
+        <input type="number" id="input-amount"
+               placeholder="금액 (원)"
+               value="100" min="50" max="10000"
+               style="width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 6px;">
+        <button onclick="submitQuestion()" style="
+          width: 100%;
+          padding: 14px;
+          background: #4F46E5;
+          color: white;
+          border: none;
+          border-radius: 6px;
+          font-size: 16px;
+          cursor: pointer;
+          margin-top: 10px;
+        ">질문하기</button>
+        <button onclick="closeAskModalV2()" style="
+          width: 100%;
+          padding: 14px;
+          background: #E5E7EB;
+          color: #374151;
+          border: none;
+          border-radius: 6px;
+          font-size: 16px;
+          cursor: pointer;
+          margin-top: 10px;
+        ">취소</button>
+      </div>
+    </div>
+
+    <!-- 답변 모달 -->
+    <div id="modal-answer" style="display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.7); z-index: 2000; justify-content:center; align-items:center;">
+      <div style="background: white; padding: 30px; border-radius: 12px; max-width: 400px; width: 90%;">
+        <h3>답변하기</h3>
+        <p id="answer-question-text" style="font-weight: bold; margin: 10px 0;"></p>
+        <p id="answer-reward" style="color: #10B981; font-weight: bold;"></p>
+        <textarea id="input-answer"
+                  placeholder="답변을 입력하세요"
+                  rows="3"
+                  style="width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 6px;"></textarea>
+        <button onclick="submitAnswer()" style="
+          width: 100%;
+          padding: 14px;
+          background: #10B981;
+          color: white;
+          border: none;
+          border-radius: 6px;
+          font-size: 16px;
+          cursor: pointer;
+        ">답변하기</button>
+        <button onclick="closeAnswerModalV2()" style="
+          width: 100%;
+          padding: 14px;
+          background: #E5E7EB;
+          color: #374151;
+          border: none;
+          border-radius: 6px;
+          font-size: 16px;
+          cursor: pointer;
+          margin-top: 10px;
+        ">취소</button>
+      </div>
+    </div>
+
+    <!-- 지갑 모달 -->
+    <div id="modal-wallet" style="display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.7); z-index: 2000; justify-content:center; align-items:center;">
+      <div style="background: white; padding: 30px; border-radius: 12px; max-width: 400px; width: 90%;">
+        <h3>💰 내 지갑</h3>
+        <div style="background: #F3F4F6; padding: 20px; border-radius: 8px; margin: 15px 0;">
+          <h4>캐시 (출금 가능)</h4>
+          <div style="font-size: 28px; font-weight: bold; color: #4F46E5;">
+            <span id="cash-balance">0</span>원
+          </div>
+          <button onclick="convertToPoint()" style="
+            padding: 8px 16px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            margin-top: 10px;
+            cursor: pointer;
+          ">포인트로 전환 →</button>
+          <button onclick="withdraw()" style="
+            padding: 8px 16px;
+            background: #4F46E5;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            margin-top: 10px;
+            margin-left: 10px;
+            cursor: pointer;
+          ">출금하기</button>
+        </div>
+        <div style="background: #F3F4F6; padding: 20px; border-radius: 8px; margin: 15px 0;">
+          <h4>포인트 (매장 사용)</h4>
+          <div style="font-size: 28px; font-weight: bold; color: #10B981;">
+            <span id="point-balance">0</span> BP
+          </div>
+          <p style="font-size: 12px; color: #666; margin-top: 5px;">매장 이벤트에서만 사용 가능</p>
+        </div>
+        <button onclick="closeWalletModalV2()" style="
+          width: 100%;
+          padding: 14px;
+          background: #E5E7EB;
+          color: #374151;
+          border: none;
+          border-radius: 6px;
+          margin-top: 10px;
+          cursor: pointer;
+        ">닫기</button>
+      </div>
     </div>
 
     <div id="host-controls">
@@ -296,6 +478,10 @@
         let myTier = 'Free'; 
         let canPost = true;
         let myLatLng = null;
+        let selectedLat = null;
+        let selectedLng = null;
+        let currentQuestionId = null;
+        let askModeV2 = false;
         const MIN_TEXT_LEN = 5;
         const MAX_TEXT_LEN = 15;
 
@@ -365,6 +551,16 @@
                     if (d <= 500) showPushToast(`📣 ${data.storeName || '근처 가게'}: ${data.message}`);
                 }
             });
+            socket.on('new_question', (data) => {
+                if (!data || !data.question) return;
+                document.getElementById('answer-question-text').innerText = data.question.text;
+                document.getElementById('answer-reward').innerText = `보상: ${data.question.amount}원`;
+                currentQuestionId = data.question.id;
+                document.getElementById('modal-answer').style.display = 'flex';
+                if (Notification.permission === 'granted') {
+                    new Notification('BluePin', { body: data.message, icon: '/logo.png' });
+                }
+            });
             socket.on('removePin', (id) => { if (markers[id]) { map.removeLayer(markers[id]); delete markers[id]; } });
             socket.on('pinAnswered', (data) => {
                 if (markers[data.pinId]) { map.removeLayer(markers[data.pinId]); delete markers[data.pinId]; }
@@ -385,6 +581,17 @@
                 triggerHaptic(); tempAskLat = e.latlng.lat; tempAskLng = e.latlng.lng;
                 document.getElementById('ask-modal').style.display = 'flex'; isAskMode = false; 
                 document.getElementById('map').classList.remove('crosshair-cursor'); document.getElementById('toast-msg').style.display = 'none';
+            }
+        });
+
+        // 지도 클릭 (질문 위치 선택)
+        map.on('click', function(e) {
+            if (askModeV2) {
+                selectedLat = e.latlng.lat;
+                selectedLng = e.latlng.lng;
+                L.marker([selectedLat, selectedLng]).addTo(map).bindPopup('여기에 질문할까요?').openPopup();
+                document.getElementById('modal-ask').style.display = 'flex';
+                askModeV2 = false;
             }
         });
 
@@ -471,6 +678,8 @@
                     crosshairEl.style.display = 'block';
                     crosshairEl.classList.add('pin-host');
                     toggleProMode();
+                    document.getElementById('btn-ask-question').style.display = 'none';
+                    document.getElementById('btn-wallet').style.display = 'none';
                 } else {
                     document.getElementById('guest-wallet').style.display = 'flex';
                     document.getElementById('my-points').innerText = data.points + " BP";
@@ -478,6 +687,8 @@
                     crosshairEl.style.display = 'none';
                     crosshairEl.classList.remove('pin-host');
                     alert(`환영합니다! 현재 포인트: ${data.points} BP`);
+                    document.getElementById('btn-ask-question').style.display = canPost ? 'block' : 'none';
+                    document.getElementById('btn-wallet').style.display = 'block';
                 }
                 if (navigator.geolocation) navigator.geolocation.getCurrentPosition(pos => {
                     myLatLng = { lat: pos.coords.latitude, lng: pos.coords.longitude };
@@ -542,6 +753,174 @@
             const data = await res.json();
             if (data.success) { alert("만족 처리 완료!"); }
             else { alert("❌ " + (data.message || "오류")); }
+        }
+
+        // 질문하기 버튼
+        document.getElementById('btn-ask-question').addEventListener('click', () => {
+            askModeV2 = true;
+            alert('지도에서 위치를 터치하세요!');
+        });
+
+        // 지갑 버튼
+        document.getElementById('btn-wallet').addEventListener('click', () => {
+            loadWallet();
+            document.getElementById('modal-wallet').style.display = 'flex';
+        });
+
+        // 질문 제출
+        async function submitQuestion() {
+            const text = document.getElementById('input-question').value;
+            const type = document.querySelector('input[name="ask-type"]:checked').value;
+            const amount = parseInt(document.getElementById('input-amount').value, 10);
+
+            if (!text || text.length < 5) {
+                alert('질문은 5글자 이상 입력해주세요');
+                return;
+            }
+            if (!selectedLat || !selectedLng) {
+                alert('지도에서 위치를 먼저 선택해주세요');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/questions/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userId: myUsername,
+                        text: text,
+                        lat: selectedLat,
+                        lng: selectedLng,
+                        amount: amount,
+                        type: type
+                    })
+                });
+                const data = await response.json();
+                if (data.success && data.checkoutUrl) {
+                    window.location.href = data.checkoutUrl;
+                } else {
+                    alert(data.error || '오류가 발생했습니다');
+                }
+            } catch (error) {
+                console.error('질문 생성 오류:', error);
+                alert('오류가 발생했습니다');
+            }
+        }
+
+        // 답변 제출
+        async function submitAnswer() {
+            const text = document.getElementById('input-answer').value;
+            if (!text) {
+                alert('답변을 입력해주세요');
+                return;
+            }
+            try {
+                navigator.geolocation.getCurrentPosition(async (position) => {
+                    const response = await fetch('/api/answers/create', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            questionId: currentQuestionId,
+                            answererId: myUsername,
+                            text: text,
+                            answererLat: position.coords.latitude,
+                            answererLng: position.coords.longitude
+                        })
+                    });
+                    const data = await response.json();
+                    if (data.success) {
+                        alert('답변이 등록되었습니다! 24시간 후 수익이 적립됩니다.');
+                        closeAnswerModalV2();
+                    } else {
+                        alert(data.error || '오류가 발생했습니다');
+                    }
+                });
+            } catch (error) {
+                console.error('답변 오류:', error);
+                alert('오류가 발생했습니다');
+            }
+        }
+
+        // 지갑 로드
+        async function loadWallet() {
+            try {
+                const response = await fetch(`/api/wallet/${myUsername}`);
+                const data = await response.json();
+                if (data.success) {
+                    document.getElementById('cash-balance').innerText = data.wallet.cash_balance;
+                    document.getElementById('point-balance').innerText = data.wallet.point_balance;
+                }
+            } catch (error) {
+                console.error('지갑 로드 오류:', error);
+            }
+        }
+
+        // 캐시→포인트 전환
+        async function convertToPoint() {
+            const amount = prompt('전환할 금액 (원):');
+            if (!amount) return;
+            try {
+                const response = await fetch('/api/wallet/convert', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userId: myUsername,
+                        amount: parseInt(amount, 10)
+                    })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    alert('전환 완료!');
+                    loadWallet();
+                } else {
+                    alert(data.error || '오류가 발생했습니다');
+                }
+            } catch (error) {
+                console.error('전환 오류:', error);
+            }
+        }
+
+        // 출금
+        async function withdraw() {
+            const amount = prompt('출금할 금액 (최소 5,000원):');
+            if (!amount) return;
+            try {
+                const response = await fetch('/api/wallet/withdraw', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userId: myUsername,
+                        amount: parseInt(amount, 10)
+                    })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    alert(data.message);
+                    loadWallet();
+                } else {
+                    alert(data.error || '오류가 발생했습니다');
+                }
+            } catch (error) {
+                console.error('출금 오류:', error);
+            }
+        }
+
+        // 모달 닫기 함수들
+        function closeAskModalV2() {
+            document.getElementById('modal-ask').style.display = 'none';
+            selectedLat = null;
+            selectedLng = null;
+        }
+        function closeAnswerModalV2() {
+            document.getElementById('modal-answer').style.display = 'none';
+            currentQuestionId = null;
+        }
+        function closeWalletModalV2() {
+            document.getElementById('modal-wallet').style.display = 'none';
+        }
+
+        if (Notification.permission === 'default') {
+            Notification.requestPermission();
         }
         function toggleProMode() { const isPro = document.getElementById('pro-switch').checked; const inputField = document.getElementById('promo-text'); inputField.disabled = !isPro; if (isPro) { inputField.placeholder = "입력하세요"; inputField.style.background = "white"; } else { inputField.placeholder = "🔒 유료"; inputField.value = ""; inputField.style.background = "#f3f4f6"; } }
         function handlePromo(type, defaultText) {

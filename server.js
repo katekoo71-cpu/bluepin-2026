@@ -79,6 +79,10 @@ function hasBadWord(text) {
     return BAD_WORDS.some(w => t.includes(w));
 }
 
+function findUserByIdOrUsername(idOrName) {
+    return db.users.find(u => u.id === idOrName || u.username === idOrName) || null;
+}
+
 // 거리 계산 (Haversine formula)
 function calculateDistance(lat1, lon1, lat2, lon2) {
     const R = 6371e3; // 지구 반지름 (미터)
@@ -101,10 +105,12 @@ app.get('/', (req, res) => { res.sendFile(path.join(__dirname, 'index.html')); }
 app.post('/api/questions/create', async (req, res) => {
     try {
         const { userId, text, lat, lng, amount, type } = req.body;
+        const user = findUserByIdOrUsername(userId);
+        const askerId = user ? user.id : userId;
         const questionId = `Q_${Date.now()}`;
         const question = {
             id: questionId,
-            asker_id: userId,
+            asker_id: askerId,
             text: text,
             lat: parseFloat(lat),
             lng: parseFloat(lng),
@@ -196,7 +202,7 @@ setInterval(async () => {
             if (!escrow.answerer_id) {
                 escrow.status = 'refunded';
             } else {
-                const answerer = db.users.find(u => u.id === escrow.answerer_id);
+                const answerer = findUserByIdOrUsername(escrow.answerer_id);
                 if (answerer) {
                     const fee = Math.floor(escrow.amount * 0.15);
                     const earning = escrow.amount - fee;
@@ -252,6 +258,8 @@ app.get('/api/questions/nearby', (req, res) => {
 app.post('/api/answers/create', async (req, res) => {
     try {
         const { questionId, answererId, text, answererLat, answererLng } = req.body;
+        const answerUser = findUserByIdOrUsername(answererId);
+        const answererStoredId = answerUser ? answerUser.id : answererId;
 
         const question = db.questions.find(q => q.id === questionId);
         if (!question || question.status !== 'open') {
@@ -283,7 +291,7 @@ app.post('/api/answers/create', async (req, res) => {
         const answer = {
             id: `A_${Date.now()}`,
             question_id: questionId,
-            answerer_id: answererId,
+            answerer_id: answererStoredId,
             text: text,
             photo_url: null,
             status: 'pending',
@@ -294,7 +302,7 @@ app.post('/api/answers/create', async (req, res) => {
         question.status = 'answered';
 
         const escrow = db.escrow.find(e => e.question_id === questionId);
-        if (escrow) escrow.answerer_id = answererId;
+        if (escrow) escrow.answerer_id = answererStoredId;
 
         saveDB();
 
@@ -315,7 +323,7 @@ app.post('/api/answers/create', async (req, res) => {
 app.post('/api/wallet/convert', (req, res) => {
     try {
         const { userId, amount } = req.body;
-        const user = db.users.find(u => u.id === userId);
+        const user = findUserByIdOrUsername(userId);
         if (!user) {
             return res.status(404).json({ success: false, error: '사용자를 찾을 수 없습니다' });
         }
@@ -349,7 +357,7 @@ app.post('/api/wallet/convert', (req, res) => {
 app.post('/api/wallet/withdraw', async (req, res) => {
     try {
         const { userId, amount } = req.body;
-        const user = db.users.find(u => u.id === userId);
+        const user = findUserByIdOrUsername(userId);
         if (!user) {
             return res.status(404).json({ success: false, error: '사용자를 찾을 수 없습니다' });
         }
@@ -400,7 +408,7 @@ app.post('/api/wallet/withdraw', async (req, res) => {
 app.get('/api/wallet/:userId', (req, res) => {
     try {
         const { userId } = req.params;
-        const user = db.users.find(u => u.id === userId);
+        const user = findUserByIdOrUsername(userId);
         if (!user) {
             return res.status(404).json({ success: false, error: '사용자를 찾을 수 없습니다' });
         }
