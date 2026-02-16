@@ -38,7 +38,7 @@ function loadDB() {
         const raw = fs.readFileSync(DB_PATH, 'utf8');
         return JSON.parse(raw);
     } catch (e) {
-        return { users: [], questions: [], answers: [], escrow: [], transactions: [], topups: [], withdrawals: [], pins: [], stores: [], trust_reports: [], push_subscriptions: [] };
+        return { users: [], questions: [], answers: [], escrow: [], transactions: [], topups: [], withdrawals: [], pins: [], stores: [], trust_reports: [], push_subscriptions: [], redemptions: [] };
     }
 }
 function saveDB() {
@@ -48,6 +48,7 @@ function saveDB() {
 let db = loadDB();
 db.push_subscriptions = db.push_subscriptions || [];
 db.topups = db.topups || [];
+db.redemptions = db.redemptions || [];
 // 기존 로직 호환
 let pins = db.pins;
 let users = db.users;
@@ -103,6 +104,10 @@ function isValidAmount(amount) {
 }
 
 function nowIso() { return new Date().toISOString(); }
+
+function generateCode() {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+}
 
 if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
     webpush.setVapidDetails('mailto:admin@bluepin.app', VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
@@ -894,10 +899,15 @@ app.post('/upgrade-tier', (req, res) => {
     else { res.json({ success: false }); }
 });
 
-// Sound Pay
+// Sound Pay (1회성 인증코드)
 app.post('/use-point', (req, res) => {
     const { username, amount, pinId } = req.body;
-    const user = users.find(u => u.username === username);
+    const authUser = getAuthUser(req);
+    if (!authUser) return res.status(401).json({ success: false, message: "인증 필요" });
+    if (authUser.username !== username && authUser.id !== username) {
+        return res.status(403).json({ success: false, message: "권한 없음" });
+    }
+    const user = users.find(u => u.username === username || u.id === username);
     const useAmount = parseInt(amount, 10);
     if (!user) return res.json({ success: false, message: "사용자 없음" });
     if (!Number.isFinite(useAmount) || useAmount <= 0) return res.json({ success: false, message: "포인트 금액 오류" });
@@ -910,11 +920,44 @@ app.post('/use-point', (req, res) => {
 
     if (user.points >= useAmount) {
         user.points -= useAmount;
+        const code = generateCode();
+        const expiresAt = Date.now() + 5 * 60 * 1000;
+        db.redemptions.push({
+            id: `RED_${Date.now()}`,
+            code,
+            user_id: user.id,
+            amount: useAmount,
+            pin_id: pinId || null,
+            status: 'pending',
+            created_at: nowIso(),
+            expires_at: new Date(expiresAt).toISOString()
+        });
         logHistory(user, 'spend', -useAmount, pinId ? `핀 포인트 사용 (${useAmount} BP)` : 'Sound Pay 결제');
-        res.json({ success: true, newPoints: user.points });
+        saveDB();
+        res.json({ success: true, newPoints: user.points, code, expiresAt });
     } else {
         res.json({ success: false, message: "포인트 부족!" });
     }
+});
+
+// Sound Pay 코드 인증 (점주)
+app.post('/api/pay/verify', (req, res) => {
+    const { code } = req.body;
+    const authUser = getAuthUser(req);
+    if (!authUser) return res.status(401).json({ success: false, message: "인증 필요" });
+    if (authUser.role !== 'host') return res.status(403).json({ success: false, message: "점주만 가능" });
+    const record = db.redemptions.find(r => r.code === code && r.status === 'pending');
+    if (!record) return res.status(404).json({ success: false, message: "코드를 찾을 수 없습니다" });
+    if (new Date(record.expires_at).getTime() < Date.now()) {
+        record.status = 'expired';
+        saveDB();
+        return res.status(400).json({ success: false, message: "코드가 만료되었습니다" });
+    }
+    record.status = 'verified';
+    record.verified_by = authUser.id;
+    record.verified_at = nowIso();
+    saveDB();
+    res.json({ success: true, amount: record.amount, userId: record.user_id });
 });
 
 // 답변 보상

@@ -87,6 +87,7 @@
         
         #flash-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #2563EB; z-index: 99999; display: none; align-items: center; justify-content: center; flex-direction: column; color: white; text-align: center; }
         #flash-amount { font-size: 18px; font-weight: bold; margin-top: 8px; }
+        #flash-code { font-size: 34px; font-weight: 900; letter-spacing: 4px; margin-top: 10px; }
         @keyframes flashEffect { 0% { opacity: 1; background: #2563EB; } 50% { opacity: 0.3; background: #60A5FA; } 100% { opacity: 1; background: #2563EB; } }
         .flashing { animation: flashEffect 0.3s infinite; }
         
@@ -158,6 +159,7 @@
         <h1 style="font-size:40px; font-weight:900;">BLUEPIN<br>PAY</h1>
         <p>사장님께 보여주세요!</p>
         <div id="flash-amount"></div>
+        <div id="flash-code"></div>
         <p style="margin-top:20px; font-size:14px; opacity:0.8;">(화면을 터치하면 꺼집니다)</p>
     </div>
     
@@ -520,6 +522,7 @@
             <button class="action-btn btn-yellow" onclick="handlePromo('fresh', '📢 신메뉴/신상 출시')">📢 소식 / 알림</button>
             <button class="action-btn btn-blue" onclick="handlePromo('seat', '⚡️ 지금 웨이팅 없음')">ℹ️ 정보 / 안내</button>
         </div>
+        <button class="role-btn btn-host" onclick="verifyPayCode()">💳 Sound Pay 인증</button>
     </div>
 
     <script src="/socket.io/socket.io.js"></script> 
@@ -806,13 +809,18 @@
             playBrandSound();
             const overlay = document.getElementById('flash-overlay');
             const flashAmount = document.getElementById('flash-amount');
+            const flashCode = document.getElementById('flash-code');
             flashAmount.innerText = `${amount} BP 사용`;
+            flashCode.innerText = '';
             overlay.style.display = 'flex';
             overlay.classList.add('flashing');
             try {
-                const res = await fetch('/use-point', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: myUsername, amount, pinId }) });
+                const res = await fetch('/use-point', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-auth-token': authToken || '' }, body: JSON.stringify({ username: myUsername, amount, pinId, authToken: authToken || '' }) });
                 const data = await res.json();
-                if (data.success) { document.getElementById('my-points').innerText = data.newPoints + " BP"; }
+                if (data.success) {
+                    document.getElementById('my-points').innerText = `${formatNumber(data.newPoints)} BP`;
+                    flashCode.innerText = data.code ? data.code : '';
+                }
                 else { alert("❌ " + data.message); stopFlash(); }
             } catch(e) { alert("통신 오류!"); stopFlash(); }
         }
@@ -831,7 +839,10 @@
             if (!canPost) return alert("신고로 인해 작성 권한이 제한되었습니다. 운영자에게 문의해주세요.");
             triggerHaptic();
             targetPinId = pinId;
-            if(confirm("촬영하시겠습니까? (인물/번호판 주의)")) document.getElementById('camera-input').click();
+            if(confirm("촬영하시겠습니까? (인물/번호판 주의)")) {
+                alert("🚫 인물/번호판이 포함되면 삭제될 수 있습니다.");
+                document.getElementById('camera-input').click();
+            }
         }
         function handlePhotoUpload(input) { if (input.files && input.files[0]) { const file = input.files[0]; const reader = new FileReader(); reader.onload = async function(e) { const res = await fetch('/answer-mission', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: myUsername, pinId: targetPinId, photo: e.target.result }) }); const data = await res.json(); if(data.success) { alert("인증 성공!"); document.getElementById('my-points').innerText = data.newPoints + " BP"; } }; reader.readAsDataURL(file); } }
         async function answerWithText(pinId) {
@@ -848,6 +859,25 @@
         }
         async function translatePin(pinId, originalText) { try { const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(originalText)}&langpair=ko|en`); const data = await res.json(); if(data && data.responseData) document.getElementById(`msg-${pinId}`).innerText = data.responseData.translatedText; } catch (e) {} }
         function toggleControls() { triggerHaptic(); document.getElementById('host-controls').classList.toggle('active'); }
+        async function verifyPayCode() {
+            const code = prompt('손님이 보여준 6자리 코드를 입력하세요');
+            if (!code) return;
+            try {
+                const res = await fetch('/api/pay/verify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'x-auth-token': authToken || '' },
+                    body: JSON.stringify({ code: code.trim(), authToken: authToken || '' })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert(`인증 완료! 금액: ${formatNumber(data.amount)}원`);
+                } else {
+                    alert(data.message || '인증 실패');
+                }
+            } catch (e) {
+                alert('통신 오류');
+            }
+        }
         async function satisfyAnswer(pinId) {
             triggerHaptic();
             const res = await fetch('/satisfy', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: myUsername, pinId: pinId }) });
