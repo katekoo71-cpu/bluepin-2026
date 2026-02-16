@@ -37,9 +37,34 @@
       <tbody></tbody>
     </table>
   </div>
+  <div class="card">
+    <h3>질문 관리</h3>
+    <table id="questions-table">
+      <thead><tr><th>ID</th><th>Asker</th><th>Text</th><th>Amount</th><th>Status</th><th>Action</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <div class="card">
+    <h3>답변 관리</h3>
+    <table id="answers-table">
+      <thead><tr><th>ID</th><th>Question</th><th>Answerer</th><th>Text</th><th>Status</th><th>Action</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <div class="card">
+    <h3>신고 내역</h3>
+    <div id="reports-summary" style="font-size:12px; color:#666; margin-bottom:6px;"></div>
+    <table id="reports-table">
+      <thead><tr><th>ID</th><th>Type</th><th>Target</th><th>Reported</th><th>Reporter</th><th>Reason</th><th>Status</th><th>Action</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
   <script>
     let cachedUsers = [];
     let cachedPins = [];
+    let cachedQuestions = [];
+    let cachedAnswers = [];
+    let cachedReports = [];
 
     async function loadData() {
       const key = document.getElementById('admin-key').value;
@@ -48,9 +73,15 @@
       if (!data.success) return alert(data.message || '권한 없음');
       cachedUsers = data.users || [];
       cachedPins = data.activePins || [];
+      cachedQuestions = data.questions || [];
+      cachedAnswers = data.answers || [];
+      cachedReports = data.reports || [];
       document.getElementById('threshold-info').innerText = `신고 누적 ${data.threshold}회 이상 시 자동 차단`;
       renderUsers();
       renderPins();
+      renderQuestions();
+      renderAnswers();
+      renderReports();
     }
 
     function renderUsers() {
@@ -82,6 +113,43 @@
       });
     }
 
+    function renderQuestions() {
+      const qtb = document.querySelector('#questions-table tbody');
+      qtb.innerHTML = '';
+      cachedQuestions.forEach(q => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${q.id}</td><td>${q.asker_id || ''}</td><td>${q.text || ''}</td><td>${q.amount || 0}</td><td>${q.status || ''}</td>
+        <td><button onclick="deleteQuestion('${q.id}')">삭제</button></td>`;
+        qtb.appendChild(tr);
+      });
+    }
+
+    function renderAnswers() {
+      const atb = document.querySelector('#answers-table tbody');
+      atb.innerHTML = '';
+      cachedAnswers.forEach(a => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${a.id}</td><td>${a.question_id || ''}</td><td>${a.answerer_id || ''}</td><td>${a.text || ''}</td><td>${a.status || ''}</td>
+        <td><button onclick="deleteAnswer('${a.id}')">삭제</button></td>`;
+        atb.appendChild(tr);
+      });
+    }
+
+    function renderReports() {
+      const rtb = document.querySelector('#reports-table tbody');
+      rtb.innerHTML = '';
+      const total = cachedReports.length;
+      const pending = cachedReports.filter(r => r.status === 'pending').length;
+      const resolved = cachedReports.filter(r => r.status === 'resolved').length;
+      document.getElementById('reports-summary').innerText = `총 ${total}건 · 대기 ${pending}건 · 처리 ${resolved}건`;
+      cachedReports.forEach(r => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${r.id}</td><td>${r.type}</td><td>${r.target_id}</td><td>${r.reported_id}</td><td>${r.reporter_id}</td><td>${r.reason || ''}</td><td>${r.status || ''}</td>
+        <td><button onclick="resolveReport('${r.id}')">처리</button></td>`;
+        rtb.appendChild(tr);
+      });
+    }
+
     async function setUser(username, banned, shadowbanned, reportCount) {
       const key = document.getElementById('admin-key').value;
       const res = await fetch('/admin-user-update', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ key, username, banned, shadowbanned, reportCount }) });
@@ -92,6 +160,29 @@
     async function hidePin(pinId, hidden) {
       const key = document.getElementById('admin-key').value;
       const res = await fetch('/admin-pin-hide', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ key, pinId, hidden }) });
+      const data = await res.json();
+      if (data.success) loadData(); else alert(data.message || '실패');
+    }
+
+    async function deleteQuestion(questionId) {
+      if (!confirm('질문을 삭제할까요?')) return;
+      const key = document.getElementById('admin-key').value;
+      const res = await fetch('/admin-question-delete', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ key, questionId }) });
+      const data = await res.json();
+      if (data.success) loadData(); else alert(data.message || '실패');
+    }
+
+    async function deleteAnswer(answerId) {
+      if (!confirm('답변을 삭제할까요?')) return;
+      const key = document.getElementById('admin-key').value;
+      const res = await fetch('/admin-answer-delete', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ key, answerId }) });
+      const data = await res.json();
+      if (data.success) loadData(); else alert(data.message || '실패');
+    }
+
+    async function resolveReport(reportId) {
+      const key = document.getElementById('admin-key').value;
+      const res = await fetch('/admin-report-resolve', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ key, reportId, status: 'resolved' }) });
       const data = await res.json();
       if (data.success) loadData(); else alert(data.message || '실패');
     }

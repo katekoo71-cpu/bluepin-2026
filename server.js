@@ -57,10 +57,21 @@ const MIN_TEXT_LEN = 5;
 const MAX_TEXT_LEN = 15;
 const REPORT_BAN_THRESHOLD = 3;
 const ADMIN_KEY = process.env.ADMIN_KEY || "bluepin-admin";
-const BAD_WORDS = [
+const BAD_WORDS_FILE = path.join(__dirname, 'badwords.txt');
+let BAD_WORDS = [
     "시발","씨발","ㅅㅂ","병신","좆","미친","개새","fuck","shit","sex","porn",
     "도박","토토","바카라","카지노","대출","성인","성인광고"
 ];
+try {
+    const extraWords = fs.readFileSync(BAD_WORDS_FILE, 'utf8')
+        .split(/\r?\n/)
+        .map(w => w.trim())
+        .filter(Boolean);
+    BAD_WORDS = BAD_WORDS.concat(extraWords);
+} catch (e) {
+    console.warn('⚠️ badwords.txt not found, using default list only.');
+}
+const BAD_WORD_SET = new Set(BAD_WORDS.map(w => w.toLowerCase()));
 const filter = new Filter();
 filter.addWords('ㅅㅂ', 'ㅆㅂ', '시발', '개새끼');
 
@@ -86,7 +97,10 @@ function isValidText(text) {
 
 function hasBadWord(text) {
     const t = normalizeText(text).toLowerCase();
-    return BAD_WORDS.some(w => t.includes(w));
+    for (const w of BAD_WORD_SET) {
+        if (w && t.includes(w)) return true;
+    }
+    return false;
 }
 
 function findUserByIdOrUsername(idOrName) {
@@ -1133,7 +1147,33 @@ app.post('/admin-data', (req, res) => {
         reputation: u.reputation || 0
     }));
     const activePins = pins.map(p => ({ id: p.id, storeName: p.storeName, username: p.username, message: p.message, hidden: p.hidden }));
-    res.json({ success: true, users: allUsers, activePins, threshold: REPORT_BAN_THRESHOLD });
+    const questions = (db.questions || []).map(q => ({
+        id: q.id,
+        text: q.text,
+        asker_id: q.asker_id,
+        amount: q.amount,
+        status: q.status,
+        created_at: q.created_at
+    }));
+    const answers = (db.answers || []).map(a => ({
+        id: a.id,
+        question_id: a.question_id,
+        answerer_id: a.answerer_id,
+        text: a.text,
+        status: a.status,
+        created_at: a.created_at
+    }));
+    const reports = (db.trust_reports || []).map(r => ({
+        id: r.id,
+        type: r.type,
+        target_id: r.target_id,
+        reported_id: r.reported_id,
+        reporter_id: r.reporter_id,
+        reason: r.reason,
+        status: r.status,
+        created_at: r.created_at
+    }));
+    res.json({ success: true, users: allUsers, activePins, questions, answers, reports, threshold: REPORT_BAN_THRESHOLD });
 });
 
 app.post('/admin-unban', (req, res) => {
@@ -1170,6 +1210,44 @@ app.post('/admin-pin-hide', (req, res) => {
     const pin = pins.find(p => p.id === pinId || p._id === pinId);
     if (!pin) return res.json({ success: false, message: "핀 없음" });
     pin.hidden = !!hidden;
+    res.json({ success: true });
+});
+
+app.post('/admin-question-delete', (req, res) => {
+    const { key, questionId } = req.body;
+    if (key !== ADMIN_KEY) return res.json({ success: false, message: "권한 없음" });
+    const target = db.questions.find(q => q.id === questionId);
+    if (!target) return res.json({ success: false, message: "질문 없음" });
+    db.questions = db.questions.filter(q => q.id !== questionId);
+    db.answers = db.answers.filter(a => a.question_id !== questionId);
+    db.escrow = db.escrow.filter(e => e.question_id !== questionId);
+    db.trust_reports = db.trust_reports.filter(r => r.target_id !== questionId);
+    saveDB();
+    res.json({ success: true });
+});
+
+app.post('/admin-answer-delete', (req, res) => {
+    const { key, answerId } = req.body;
+    if (key !== ADMIN_KEY) return res.json({ success: false, message: "권한 없음" });
+    const target = db.answers.find(a => a.id === answerId);
+    if (!target) return res.json({ success: false, message: "답변 없음" });
+    db.answers = db.answers.filter(a => a.id !== answerId);
+    const question = db.questions.find(q => q.id === target.question_id);
+    if (question && question.status === 'answered') question.status = 'open';
+    const escrow = db.escrow.find(e => e.question_id === target.question_id);
+    if (escrow) escrow.answerer_id = null;
+    db.trust_reports = db.trust_reports.filter(r => r.target_id !== answerId);
+    saveDB();
+    res.json({ success: true });
+});
+
+app.post('/admin-report-resolve', (req, res) => {
+    const { key, reportId, status } = req.body;
+    if (key !== ADMIN_KEY) return res.json({ success: false, message: "권한 없음" });
+    const report = db.trust_reports.find(r => r.id === reportId);
+    if (!report) return res.json({ success: false, message: "신고 없음" });
+    report.status = status || 'resolved';
+    saveDB();
     res.json({ success: true });
 });
 

@@ -361,6 +361,18 @@
         <h3>답변하기</h3>
         <p id="answer-question-text" style="font-weight: bold; margin: 10px 0;"></p>
         <p id="answer-reward" style="color: #10B981; font-weight: bold;"></p>
+        <button id="btn-report-question" onclick="reportQuestion()" style="
+          display: none;
+          width: 100%;
+          padding: 10px;
+          background: #FEE2E2;
+          color: #B91C1C;
+          border: 1px solid #FCA5A5;
+          border-radius: 6px;
+          font-size: 13px;
+          cursor: pointer;
+          margin-bottom: 8px;
+        ">🚨 질문 신고</button>
         <textarea id="input-answer"
                   placeholder="답변을 입력하세요"
                   rows="3"
@@ -538,6 +550,7 @@
         let selectedLat = null;
         let selectedLng = null;
         let currentQuestionId = null;
+        let currentQuestionAskerId = null;
         let currentAnswerId = null;
         let currentAnswererId = null;
         let answerReviewMode = false;
@@ -634,11 +647,13 @@
                 document.getElementById('answer-question-text').innerText = data.question.text;
                 document.getElementById('answer-reward').innerText = `보상: ${formatNumber(data.question.amount)}원`;
                 currentQuestionId = data.question.id;
+                currentQuestionAskerId = data.question.asker_id;
                 answerReviewMode = false;
                 document.getElementById('input-answer').value = '';
                 document.getElementById('input-answer').readOnly = false;
                 document.getElementById('btn-submit-answer').style.display = 'block';
                 document.getElementById('answer-actions').style.display = 'none';
+                document.getElementById('btn-report-question').style.display = 'block';
                 document.getElementById('modal-answer').style.display = 'flex';
                 showPushToast(`🔔 새 질문 도착: ${data.question.text}`);
                 if (Notification.permission === 'granted') {
@@ -657,6 +672,7 @@
                 document.getElementById('input-answer').readOnly = true;
                 document.getElementById('btn-submit-answer').style.display = 'none';
                 document.getElementById('answer-actions').style.display = 'flex';
+                document.getElementById('btn-report-question').style.display = 'none';
                 document.getElementById('modal-answer').style.display = 'flex';
                 showPushToast('✅ 답변이 도착했습니다');
             });
@@ -1088,6 +1104,7 @@
         function closeAnswerModalV2() {
             document.getElementById('modal-answer').style.display = 'none';
             currentQuestionId = null;
+            currentQuestionAskerId = null;
             currentAnswerId = null;
             currentAnswererId = null;
             answerReviewMode = false;
@@ -1136,6 +1153,35 @@
                         reportedId: currentAnswererId,
                         type: 'answer',
                         targetId: currentAnswerId,
+                        reason: reason,
+                        authToken: authToken || ''
+                    })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    alert('신고가 접수되었습니다');
+                    closeAnswerModalV2();
+                } else {
+                    alert(data.error || '오류가 발생했습니다');
+                }
+            } catch (error) {
+                console.error('신고 오류:', error);
+            }
+        }
+
+        async function reportQuestion() {
+            if (!currentQuestionId || !currentQuestionAskerId) return;
+            const reason = prompt('신고 사유를 입력하세요:\n(허위정보/욕설/스팸)');
+            if (!reason) return;
+            try {
+                const response = await fetch('/api/trust/report', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'x-auth-token': authToken || '' },
+                    body: JSON.stringify({
+                        reporterId: myUsername,
+                        reportedId: currentQuestionAskerId,
+                        type: 'question',
+                        targetId: currentQuestionId,
                         reason: reason,
                         authToken: authToken || ''
                     })
