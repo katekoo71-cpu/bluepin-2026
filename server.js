@@ -255,25 +255,37 @@ app.post('/api/questions/create', async (req, res) => {
         if (authUser.id !== userId && authUser.username !== userId) {
             return res.status(403).json({ success: false, error: '권한 없음' });
         }
-        if (typeof text !== 'string' || text.trim().length < 1) {
-            return res.status(400).json({ success: false, error: '질문을 입력해주세요' });
+        const user = findUserByIdOrUsername(userId);
+        if (!user) return res.status(404).json({ success: false, error: '사용자를 찾을 수 없습니다' });
+        if (user.banned || user.role === 'suspended') {
+            return res.status(403).json({ success: false, error: '작성 권한이 제한되었습니다' });
+        }
+        if (!isValidText(text)) {
+            return res.status(400).json({ success: false, error: '질문은 5~15자로 입력해주세요' });
         }
         if (filter.isProfane(text) || hasBadWord(text)) {
             return res.status(400).json({ success: false, error: '부적절한 단어가 포함되어 있습니다' });
         }
-        const user = findUserByIdOrUsername(userId);
         const askerId = user ? user.id : userId;
         const questionId = `Q_${Date.now()}`;
         const parsedAmount = parseInt(amount, 10);
         if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
             return res.status(400).json({ success: false, error: '금액이 올바르지 않습니다' });
         }
+        const parsedLat = parseFloat(lat);
+        const parsedLng = parseFloat(lng);
+        if (!Number.isFinite(parsedLat) || !Number.isFinite(parsedLng)) {
+            return res.status(400).json({ success: false, error: '위치 정보가 올바르지 않습니다' });
+        }
+        if ((user.cash_balance || 0) < parsedAmount) {
+            return res.status(400).json({ success: false, error: '캐시가 부족합니다. 충전 후 다시 시도해주세요.' });
+        }
         const question = {
             id: questionId,
             asker_id: askerId,
             text: text,
-            lat: parseFloat(lat),
-            lng: parseFloat(lng),
+            lat: parsedLat,
+            lng: parsedLng,
             amount: parsedAmount,
             type: type,
             status: 'payment_pending',
@@ -283,10 +295,6 @@ app.post('/api/questions/create', async (req, res) => {
 
         db.questions.push(question);
         saveDB();
-
-        if ((user.cash_balance || 0) < parsedAmount) {
-            return res.status(400).json({ success: false, error: '캐시가 부족합니다. 충전 후 다시 시도해주세요.' });
-        }
 
         // 질문 금액은 지갑에서 즉시 차감 (원클릭)
         user.cash_balance -= parsedAmount;
@@ -552,13 +560,17 @@ app.post('/api/answers/create', async (req, res) => {
         if (authUser.id !== answererId && authUser.username !== answererId) {
             return res.status(403).json({ success: false, error: '권한 없음' });
         }
-        if (typeof text !== 'string' || text.trim().length < 1) {
-            return res.status(400).json({ success: false, error: '답변을 입력해주세요' });
+        const answerUser = findUserByIdOrUsername(answererId);
+        if (!answerUser) return res.status(404).json({ success: false, error: '사용자를 찾을 수 없습니다' });
+        if (answerUser.banned || answerUser.role === 'suspended') {
+            return res.status(403).json({ success: false, error: '작성 권한이 제한되었습니다' });
+        }
+        if (!isValidText(text)) {
+            return res.status(400).json({ success: false, error: '답변은 5~15자로 입력해주세요' });
         }
         if (filter.isProfane(text) || hasBadWord(text)) {
             return res.status(400).json({ success: false, error: '부적절한 단어가 포함되어 있습니다' });
         }
-        const answerUser = findUserByIdOrUsername(answererId);
         const answererStoredId = answerUser ? answerUser.id : answererId;
 
         const question = db.questions.find(q => q.id === questionId);
@@ -1101,7 +1113,7 @@ io.on('connection', (socket) => {
     
     socket.on('reportPin', (payload) => {
         const pinId = payload && payload.pinId ? payload.pinId : payload;
-        const reporter = payload && payload.reporter ? payload.reporter : null;
+        const reporter = socket.username || null;
         const target = pins.find(p => p.id === pinId || p._id === pinId);
         if (!target) return;
 
@@ -1149,6 +1161,11 @@ io.on('connection', (socket) => {
 
 app.post('/satisfy', (req, res) => {
     const { username, pinId } = req.body;
+    const authUser = getAuthUser(req);
+    if (!authUser) return res.status(401).json({ success: false, message: "인증 필요" });
+    if (authUser.id !== username && authUser.username !== username) {
+        return res.status(403).json({ success: false, message: "권한 없음" });
+    }
     const pin = pins.find(p => p.id === pinId || p._id === pinId);
     if (!pin) return res.json({ success: false, message: "핀 없음" });
     if (pin.username !== username) return res.json({ success: false, message: "권한 없음" });
