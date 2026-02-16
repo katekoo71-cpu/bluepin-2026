@@ -1099,14 +1099,43 @@ io.on('connection', (socket) => {
         io.emit('removePin', pinId);
     });
     
-    socket.on('reportPin', (pinId) => {
+    socket.on('reportPin', (payload) => {
+        const pinId = payload && payload.pinId ? payload.pinId : payload;
+        const reporter = payload && payload.reporter ? payload.reporter : null;
         const target = pins.find(p => p.id === pinId || p._id === pinId);
-        pins = pins.filter(p => p.id !== pinId && p._id !== pinId);
-        io.emit('removePin', pinId);
+        if (!target) return;
+
+        let targetUser = null;
         if (target && target.username) {
-            const targetUser = users.find(u => u.username === target.username);
+            targetUser = users.find(u => u.username === target.username) || null;
+        }
+
+        if (reporter) {
+            const already = db.trust_reports.find(r => r.reporter_id === reporter && r.target_id === pinId);
+            if (already) return;
+            db.trust_reports.push({
+                id: `REP_${Date.now()}`,
+                reporter_id: reporter,
+                reported_id: target.username,
+                type: 'pin',
+                target_id: pinId,
+                reason: 'pin_report',
+                status: 'pending',
+                created_at: nowIso()
+            });
             if (targetUser) {
                 targetUser.reportCount = (targetUser.reportCount || 0) + 1;
+            }
+        }
+
+        const sameTargetReports = db.trust_reports.filter(r =>
+            r.target_id === pinId && r.status === 'pending'
+        );
+
+        if (sameTargetReports.length >= REPORT_BAN_THRESHOLD) {
+            target.hidden = true;
+            io.emit('removePin', pinId);
+            if (targetUser) {
                 targetUser.shadowbanned = true;
                 if (targetUser.reportCount >= REPORT_BAN_THRESHOLD) {
                     targetUser.banned = true;
@@ -1114,6 +1143,7 @@ io.on('connection', (socket) => {
                 }
             }
         }
+        saveDB();
     });
 });
 

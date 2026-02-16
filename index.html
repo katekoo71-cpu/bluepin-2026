@@ -222,7 +222,11 @@
                     </div>
                 </div>
             </div>
-            <a class="role-btn btn-host" href="sms:01063698489&body=%5BBluePin%20%EB%AC%B8%EC%9D%98%5D%20%EA%B0%80%EA%B2%8C%EB%AA%85%2F%EC%9C%A0%EC%A0%80ID%3A%20%0A%EB%AC%B8%EC%9D%98%EB%82%B4%EC%9A%A9%3A%20" style="text-decoration:none;">운영자 1:1 문의</a>
+            <div id="ban-info" class="hidden" style="margin:10px 0; padding:10px; border:1px solid #FCA5A5; background:#FEF2F2; border-radius:10px;">
+                <div style="font-size:12px; color:#B91C1C; margin-bottom:6px;">작성 권한이 제한되었습니다.</div>
+                <a id="ban-support-link" class="role-btn btn-host" href="sms:01063698489&body=%5BBluePin%20%EB%B3%B5%EA%B5%AC%EC%9A%94%EC%B2%AD%5D%20%EC%9C%A0%EC%A0%80ID%3A%20%0A%EC%82%AC%EC%9C%A0%3A%20" style="text-decoration:none; background:#B91C1C;">권한 복구 요청</a>
+            </div>
+            <a id="support-link" class="role-btn btn-host" href="sms:01063698489&body=%5BBluePin%20%EB%AC%B8%EC%9D%98%5D%20%EA%B0%80%EA%B2%8C%EB%AA%85%2F%EC%9C%A0%EC%A0%80ID%3A%20%0A%EB%AC%B8%EC%9D%98%EB%82%B4%EC%9A%A9%3A%20" style="text-decoration:none;">운영자 1:1 문의</a>
             <button class="delete-btn" onclick="logout()" style="margin-top:10px; background:#999;">로그아웃</button>
             <span class="link-text" onclick="closeMyPage()">❌ 닫기</span>
         </div>
@@ -740,12 +744,27 @@
                     const cards = document.querySelectorAll('.tier-card');
                     if (myTier === 'Free') cards[0].classList.add('active'); else if (myTier === 'Basic') cards[1].classList.add('active'); else if (myTier === 'Pro') cards[2].classList.add('active');
                 }
+                updateSupportLinks();
                 document.getElementById('mypage-overlay').style.display = 'flex';
             }
         }
         function closeMyPage() { document.getElementById('mypage-overlay').style.display = 'none'; }
         async function upgradeTier(tier) { if(!confirm(`${tier} 등급으로 업그레이드 하시겠습니까?`)) return; const res = await fetch('/upgrade-tier', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ username: myUsername, tier: tier }) }); const data = await res.json(); if(data.success) { alert(`🎉 ${tier} 등급이 되었습니다.`); openMyPage(); } }
         function logout() { localStorage.removeItem('authToken'); localStorage.removeItem('authUser'); location.reload(); }
+        function updateSupportLinks() {
+            const supportLink = document.getElementById('support-link');
+            const banInfo = document.getElementById('ban-info');
+            const banLink = document.getElementById('ban-support-link');
+            if (supportLink && myUsername) {
+                const body = encodeURIComponent(`[BluePin 문의]\n가게명/유저ID: ${myUsername}\n문의내용: `);
+                supportLink.href = `sms:01063698489&body=${body}`;
+            }
+            if (banInfo && banLink && myUsername) {
+                const body = encodeURIComponent(`[BluePin 복구요청]\n유저ID: ${myUsername}\n사유: `);
+                banLink.href = `sms:01063698489&body=${body}`;
+                banInfo.classList.toggle('hidden', canPost);
+            }
+        }
 
         function selectAskType(type) { selectedAskType = type; document.getElementById('btn-ask-text').classList.remove('selected'); document.getElementById('btn-ask-photo').classList.remove('selected'); document.getElementById('btn-ask-' + type).classList.add('selected'); }
         function closeAskModal() { document.getElementById('ask-modal').style.display = 'none'; }
@@ -789,6 +808,7 @@
                 if (authToken) { localStorage.setItem('authToken', authToken); localStorage.setItem('authUser', authUser); }
                 socket.emit('identify', myUsername);
                 canPost = !data.banned;
+                updateSupportLinks();
                 if (data.banned) alert("신고로 인해 작성 권한이 제한되었습니다. 운영자에게 문의해주세요.");
                 if (myRole === 'host') {
                     document.getElementById('current-store-name').innerText = data.storeName;
@@ -850,7 +870,11 @@
             document.getElementById('map').classList.add('crosshair-cursor');
             document.getElementById('toast-msg').style.display = 'block';
         }
-        function reportPin(pinId) { triggerHaptic(); if(confirm("신고하시겠습니까?")) socket.emit('reportPin', pinId); }
+        function reportPin(pinId) {
+            triggerHaptic();
+            if (!myUsername) return alert("로그인이 필요합니다.");
+            if(confirm("신고하시겠습니까?")) socket.emit('reportPin', { pinId, reporter: myUsername });
+        }
         function triggerCamera(pinId) {
             if (!canPost) return alert("신고로 인해 작성 권한이 제한되었습니다. 운영자에게 문의해주세요.");
             triggerHaptic();
